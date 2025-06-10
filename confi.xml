@@ -1,0 +1,9 @@
+<filter>
+    <filter-name>jaspiPrincipalToUserDetailsFilter</filter-name>
+    <filter-class>com.example.security.JaspiPrincipalToUserDetailsFilter</filter-class>
+</filter>
+
+<filter-mapping>
+    <filter-name>jaspiPrincipalToUserDetailsFilter</filter-name>
+    <url-pattern>/*</url-pattern>
+</filter-mapping>
