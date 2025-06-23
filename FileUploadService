@@ -1,0 +1,28 @@
+@Service
+public class FileUploadService {
+
+    private final WebClient webClient;
+
+    public FileUploadService(WebClient webClient) {
+        this.webClient = webClient;
+    }
+
+    public MyResponse uploadFile(File file) throws FileNotFoundException {
+        InputStream stream = new FileInputStream(file);
+
+        Flux<DataBuffer> fileBuffer = DataBufferUtils.readInputStream(
+                () -> stream,
+                new DefaultDataBufferFactory(),
+                4096
+        );
+
+        return webClient.post()
+                .uri("https://myserver/api/v1/file")
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(BodyInserters.fromDataBuffers(fileBuffer))
+                .retrieve()
+                .bodyToMono(MyResponse.class)
+                .timeout(Duration.ofMinutes(5)) // blocage avec délai suffisant
+                .block();
+    }
+}
