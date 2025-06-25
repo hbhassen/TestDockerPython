@@ -1,0 +1,67 @@
+import io.netty.channel.ChannelOption;
+import io.netty.handler.proxy.ProxyHandler;
+import io.netty.handler.timeout.ReadTimeoutHandler;
+import io.netty.handler.timeout.WriteTimeoutHandler;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
+import org.springframework.web.reactive.function.client.ExchangeFunction;
+import org.springframework.web.reactive.function.client.ExchangeStrategies;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.netty.http.client.HttpClient;
+import reactor.netty.tcp.TcpClient;
+
+import javax.net.ssl.SSLException;
+import java.io.File;
+import java.net.InetSocketAddress;
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
+
+@Configuration
+public class WebClientConfig {
+
+    @Bean
+    public ExchangeFunction chunkedWebClientExchangeFunction() throws SSLException {
+        // === SSL avec certificat client et CA (OpenSSL) ===
+        File clientCert = new File("certs/client-cert.pem");
+        File privateKey = new File("certs/client-key.pem");
+        File caCert = new File("certs/ca-cert.pem");
+
+        SslContext sslContext = SslContextBuilder.forClient()
+                .keyManager(clientCert, privateKey)
+                .trustManager(caCert)
+                .build();
+
+        // === Configuration proxy ===
+        String proxyHost = "192.168.100.10";
+        int proxyPort = 3128;
+        String proxyUser = "proxyUser";
+        String proxyPass = "proxyPass";
+
+        TcpClient tcpClient = TcpClient.create()
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10_000)
+                .proxy(proxy -> proxy
+                        .type(ProxyHandler.ProxyType.HTTP)
+                        .address(new InetSocketAddress(proxyHost, proxyPort))
+                        .username(proxyUser)
+                        .password(s -> proxyPass)
+                )
+                .secure(ssl -> ssl.sslContext(sslContext))
+                .doOnConnected(conn -> conn
+                        .addHandlerLast(new ReadTimeoutHandler(600, TimeUnit.SECONDS))
+                        .addHandlerLast(new WriteTimeoutHandler(600, TimeUnit.SECONDS))
+                );
+
+        HttpClient httpClient = HttpClient.from(tcpClient)
+                .responseTimeout(Duration.ofMinutes(10));
+
+        WebClient webClient = WebClient.builder()
+                .clientConnector(new ReactorClientHttpConnector(httpClient))
+                .exchangeStrategies(ExchangeStrategies.withDefaults())
+                .build();
+
+        return webClient.mutate().build().exchangeFunction();
+    }
+}
