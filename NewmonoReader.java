@@ -31,4 +31,18 @@ WebClient client = WebClient.builder()
 ExchangeFunction exchangeFunction = client.exchangeFunction();
 
 
+exchangeFunction.exchange(request)
+    .flatMap(response -> {
+        // 📌 Récupération des headers
+        HttpHeaders headers = response.headers().asHttpHeaders();
+
+        // 🔍 Affichage en console
+        headers.forEach((key, values) -> 
+            System.out.println("🔸 " + key + ": " + String.join(", ", values))
+        );
+
+        // Ensuite, traitement normal
+        return response.bodyToMono(User.class);
+    });
+
 
