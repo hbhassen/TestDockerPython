@@ -1,8 +1,11 @@
 myapp:
   settings:
-    - key: timeout
-      value: 30
-    - key: retries
-      value: 5
-    - key: endpoint
-      value: https://api.example.com
+    - app: app1
+      dir: /opt/app1
+      dirKo: /ko
+    - app: app2
+      dir: /opt/app2
+      dirKo: /ko2
+    - app: app1
+      dir: /opt/app1
+      dirKo: /ko
