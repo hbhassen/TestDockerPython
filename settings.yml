@@ -1,0 +1,8 @@
+myapp:
+  settings:
+    - key: timeout
+      value: 30
+    - key: retries
+      value: 5
+    - key: endpoint
+      value: https://api.example.com
