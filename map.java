@@ -19,15 +19,19 @@ public class MyAppProperties {
         this.settings = settings;
     }
 
-    // Classe interne représentant chaque dictionnaire
+    // Classe interne pour représenter un dictionnaire
     public static class Setting {
-        private String key;
-        private String value;
+        private String app;
+        private String dir;
+        private String dirKo;
 
-        public String getKey() { return key; }
-        public void setKey(String key) { this.key = key; }
+        public String getApp() { return app; }
+        public void setApp(String app) { this.app = app; }
 
-        public String getValue() { return value; }
-        public void setValue(String value) { this.value = value; }
+        public String getDir() { return dir; }
+        public void setDir(String dir) { this.dir = dir; }
+
+        public String getDirKo() { return dirKo; }
+        public void setDirKo(String dirKo) { this.dirKo = dirKo; }
     }
 }
