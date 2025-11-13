@@ -1,0 +1,192 @@
+languages:
+  # =======================
+  # JAVA
+  # =======================
+  - code: "java"
+    versions:
+      - version: "17"
+        name: "jdk17"
+        publie: "2021-09-14"
+        end-of-support-communaute: "2029-09-30"     # Java 17 LTS EOSL
+        end-of-support-organisation: "2030-09-30"   # +1 an interne
+        frameworks:
+          - name: "spring-boot"
+            acronyme-organisation: "microservice"
+            minimum-version: "3.2.0"
+            latest-version: "3.5.6"
+            publie: "2023-11-16"
+            end-of-support-communaute: "2027-12-31"     # à ajuster (OSS ~3 ans)
+            end-of-support-organisation: "2029-12-31"   # interne
+            list-dependances:
+              - "org.springframework.boot:spring-boot-starter"
+              - "org.springframework.boot:spring-boot-starter-web"
+              - "org.springframework.boot:spring-boot-starter-webflux"
+              - "org.springframework.boot:spring-boot-starter-actuator"
+              - "org.springframework.boot:spring-boot-starter-validation"
+              - "org.springframework.boot:spring-boot-starter-thymeleaf"
+              - "org.springframework.boot:spring-boot-starter-security"
+              - "org.springframework.boot:spring-boot-starter-oauth2-client"
+              - "org.springframework.boot:spring-boot-starter-oauth2-resource-server"
+              - "org.springframework.boot:spring-boot-starter-data-jpa"
+              - "org.springframework.boot:spring-boot-starter-data-mongodb"
+              - "org.springframework.boot:spring-boot-starter-data-redis"
+              - "org.springframework.boot:spring-boot-starter-mail"
+              - "org.springframework.boot:spring-boot-starter-amqp"
+
+          - name: "wildfly"
+            acronyme-organisation: "jakarta"
+            minimum-version: "26.0.0"
+            latest-version: "32.0.0"
+            publie: "2021-01-01"
+            end-of-support-communaute: "2028-12-31"     # inspiré du cycle JBoss/WildFly:contentReference[oaicite:2]{index=2}
+            end-of-support-organisation: "2030-12-31"
+            list-dependances:
+              - "org.wildfly:wildfly-ee"
+              - "org.wildfly:wildfly-web"
+              - "jakarta.platform:jakarta.jakartaee-api"
+
+      - version: "11"
+        name: "jdk11"
+        publie: "2018-09-25"
+        end-of-support-communaute: "2026-09-30"       # Java 11 LTS EOSL
+        end-of-support-organisation: "2027-09-30"
+        frameworks:
+          - name: "spring-boot"
+            acronyme-organisation: "microservice"
+            minimum-version: "2.2.0"
+            latest-version: "3.0.0"
+            publie: "2019-11-01"
+            end-of-support-communaute: "2025-06-30"   # ex : fin support OSS 2.x/3.0:contentReference[oaicite:3]{index=3}
+            end-of-support-organisation: "2026-06-30"
+            list-dependances:
+              - "org.springframework.boot:spring-boot-starter"
+              - "org.springframework.boot:spring-boot-starter-web"
+              - "org.springframework.boot:spring-boot-starter-webflux"
+
+          - name: "wildfly"
+            acronyme-organisation: "jakarta"
+            minimum-version: "18.0.0"
+            latest-version: "26.0.0"
+            publie: "2015-01-01"
+            end-of-support-communaute: "2025-12-31"
+            end-of-support-organisation: "2027-12-31"
+            list-dependances:
+              - "org.wildfly:wildfly-ee"
+              - "org.wildfly:wildfly-web"
+              - "javax:javaee-api"
+
+      - version: "8"
+        name: "jdk8"
+        publie: "2014-03-18"
+        end-of-support-communaute: "2030-12-31"       # Java 8 LTS EOSL
+        end-of-support-organisation: "2032-12-31"
+        frameworks:
+          - name: "spring-boot"
+            acronyme-organisation: "microservice"
+            minimum-version: "1.5.0"
+            latest-version: "2.5.6"
+            publie: "2014-04-01"
+            end-of-support-communaute: "2022-12-31"   # SB 2.x approx:contentReference[oaicite:4]{index=4}
+            end-of-support-organisation: "2024-12-31"
+            list-dependances:
+              - "org.springframework.boot:spring-boot-starter"
+              - "org.springframework.boot:spring-boot-starter-web"
+
+          - name: "wildfly"
+            acronyme-organisation: "jakarta"
+            minimum-version: "10.0.0"
+            latest-version: "18.0.0"
+            publie: "2014-01-01"
+            end-of-support-communaute: "2023-12-31"
+            end-of-support-organisation: "2025-12-31"
+            list-dependances:
+              - "org.wildfly:wildfly-ee"
+              - "org.wildfly:wildfly-web"
+
+  # =======================
+  # PYTHON
+  # =======================
+  - code: "python"
+    versions:
+      - version: "3.12"
+        name: "python312"
+        publie: "2023-10-02"
+        end-of-support-communaute: "2028-10-02"          # 5 ans après GA typiquement:contentReference[oaicite:5]{index=5}
+        end-of-support-organisation: "2030-10-02"
+        frameworks:
+          - name: "django"
+            acronyme-organisation: "django-lts"
+            minimum-version: "4.2"
+            latest-version: "5.2"
+            publie: "2023-04-01"
+            end-of-support-communaute: "2026-04-01"      # Django 4.2 LTS:contentReference[oaicite:6]{index=6}
+            end-of-support-organisation: "2028-04-01"
+            list-dependances:
+              - "django:django"
+
+          - name: "fastapi"
+            acronyme-organisation: "fastapi"
+            minimum-version: "0.100.0"
+            latest-version: "0.120.0"
+            publie: "2023-01-01"
+            end-of-support-communaute: "2028-01-01"      # politique interne
+            end-of-support-organisation: "2030-01-01"
+            list-dependances:
+              - "fastapi:fastapi"
+
+          - name: "flask"
+            acronyme-organisation: "flask"
+            minimum-version: "2.3.0"
+            latest-version: "3.1.2"
+            publie: "2023-04-25"                         # Flask 2.3 GA:contentReference[oaicite:7]{index=7}
+            end-of-support-communaute: "2026-04-25"
+            end-of-support-organisation: "2028-04-25"
+            list-dependances:
+              - "flask:flask"
+
+      - version: "3.10"
+        name: "python310"
+        publie: "2021-10-04"
+        end-of-support-communaute: "2026-10-04"
+        end-of-support-organisation: "2028-10-04"
+        frameworks: []   # tu peux recopier ou modifier selon ta politique
+
+  # =======================
+  # NODE.JS + ANGULAR
+  # =======================
+  - code: "node"
+    versions:
+      - version: "20"
+        name: "node20"
+        publie: "2023-04-18"
+        end-of-support-communaute: "2026-04-30"         # Node 20 LTS EOL:contentReference[oaicite:8]{index=8}
+        end-of-support-organisation: "2027-04-30"
+        frameworks:
+          - name: "angular"
+            acronyme-organisation: "angular"
+            minimum-version: "18"
+            latest-version: "20"
+            publie: "2024-05-22"
+            end-of-support-communaute: "2026-11-21"     # Angular 20 active+LTS approx:contentReference[oaicite:9]{index=9}
+            end-of-support-organisation: "2028-11-21"
+            list-dependances:
+              - "@angular/core"
+              - "@angular/cli"
+              - "@angular/router"
+
+      - version: "18"
+        name: "node18"
+        publie: "2022-04-19"
+        end-of-support-communaute: "2025-04-30"          # Node 18 LTS EOL:contentReference[oaicite:10]{index=10}
+        end-of-support-organisation: "2026-04-30"
+        frameworks:
+          - name: "angular"
+            acronyme-organisation: "angular"
+            minimum-version: "16"
+            latest-version: "18"
+            publie: "2023-05-01"
+            end-of-support-communaute: "2025-11-19"
+            end-of-support-organisation: "2027-11-19"
+            list-dependances:
+              - "@angular/core"
+              - "@angular/cli"
