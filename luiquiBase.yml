@@ -1,252 +1,280 @@
 databaseChangeLog:
   - changeSet:
-      id: spring-batch-core-tables
+      id: spring-batch-core-tables-and-sequences
       author: hamdi
       changes:
 
+        # ==== SEQUENCES SPRING BATCH =========================================
+        - createSequence:
+            sequenceName: BATCH_STEP_EXECUTION_SEQ
+            maxValue: 9223372036854775807
+            cycle: false
+
+        - createSequence:
+            sequenceName: BATCH_JOB_EXECUTION_SEQ
+            maxValue: 9223372036854775807
+            cycle: false
+
+        - createSequence:
+            sequenceName: BATCH_JOB_SEQ
+            maxValue: 9223372036854775807
+            cycle: false
+
         # ==== BATCH_JOB_INSTANCE =============================================
         - createTable:
-            tableName: batch_job_instance
+            tableName: BATCH_JOB_INSTANCE
             columns:
               - column:
-                  name: job_instance_id
+                  name: JOB_INSTANCE_ID
                   type: BIGINT
                   constraints:
                     primaryKey: true
                     nullable: false
               - column:
-                  name: version
+                  name: VERSION
                   type: BIGINT
               - column:
-                  name: job_name
+                  name: JOB_NAME
                   type: VARCHAR(100)
                   constraints:
                     nullable: false
               - column:
-                  name: job_key
+                  name: JOB_KEY
                   type: VARCHAR(32)
                   constraints:
                     nullable: false
 
         - createIndex:
-            tableName: batch_job_instance
-            indexName: idx_job_inst_unq
+            tableName: BATCH_JOB_INSTANCE
+            indexName: JOB_INST_UN
             unique: true
             columns:
               - column:
-                  name: job_name
+                  name: JOB_NAME
               - column:
-                  name: job_key
+                  name: JOB_KEY
 
         # ==== BATCH_JOB_EXECUTION ============================================
         - createTable:
-            tableName: batch_job_execution
+            tableName: BATCH_JOB_EXECUTION
             columns:
               - column:
-                  name: job_execution_id
+                  name: JOB_EXECUTION_ID
                   type: BIGINT
                   constraints:
                     primaryKey: true
                     nullable: false
               - column:
-                  name: version
+                  name: VERSION
                   type: BIGINT
               - column:
-                  name: job_instance_id
+                  name: JOB_INSTANCE_ID
                   type: BIGINT
                   constraints:
                     nullable: false
               - column:
-                  name: create_time
+                  name: CREATE_TIME
                   type: TIMESTAMP
                   constraints:
                     nullable: false
               - column:
-                  name: start_time
+                  name: START_TIME
                   type: TIMESTAMP
               - column:
-                  name: end_time
+                  name: END_TIME
                   type: TIMESTAMP
               - column:
-                  name: status
+                  name: STATUS
                   type: VARCHAR(10)
               - column:
-                  name: exit_code
+                  name: EXIT_CODE
                   type: VARCHAR(2500)
               - column:
-                  name: exit_message
+                  name: EXIT_MESSAGE
                   type: VARCHAR(2500)
               - column:
-                  name: last_updated
+                  name: LAST_UPDATED
                   type: TIMESTAMP
               - column:
-                  name: job_configuration_location
+                  name: JOB_CONFIGURATION_LOCATION
                   type: VARCHAR(2500)
 
         - addForeignKeyConstraint:
-            baseTableName: batch_job_execution
-            baseColumnNames: job_instance_id
-            referencedTableName: batch_job_instance
-            referencedColumnNames: job_instance_id
-            constraintName: fk_job_exec_inst
+            baseTableName: BATCH_JOB_EXECUTION
+            baseColumnNames: JOB_INSTANCE_ID
+            referencedTableName: BATCH_JOB_INSTANCE
+            referencedColumnNames: JOB_INSTANCE_ID
+            constraintName: JOB_INST_EXEC_FK
 
         # ==== BATCH_JOB_EXECUTION_PARAMS =====================================
         - createTable:
-            tableName: batch_job_execution_params
+            tableName: BATCH_JOB_EXECUTION_PARAMS
             columns:
               - column:
-                  name: job_execution_id
+                  name: JOB_EXECUTION_ID
                   type: BIGINT
                   constraints:
                     nullable: false
               - column:
-                  name: type_cd
+                  name: TYPE_CD
                   type: VARCHAR(6)
+                  constraints:
+                    nullable: false
               - column:
-                  name: key_name
+                  name: KEY_NAME
                   type: VARCHAR(100)
+                  constraints:
+                    nullable: false
               - column:
-                  name: string_val
+                  name: STRING_VAL
                   type: VARCHAR(250)
               - column:
-                  name: date_val
+                  name: DATE_VAL
                   type: TIMESTAMP
               - column:
-                  name: long_val
+                  name: LONG_VAL
                   type: BIGINT
               - column:
-                  name: double_val
+                  name: DOUBLE_VAL
                   type: DOUBLE PRECISION
               - column:
-                  name: identifying
+                  name: IDENTIFYING
                   type: CHAR(1)
+                  constraints:
+                    nullable: false
 
         - addForeignKeyConstraint:
-            baseTableName: batch_job_execution_params
-            baseColumnNames: job_execution_id
-            referencedTableName: batch_job_execution
-            referencedColumnNames: job_execution_id
-            constraintName: fk_job_exec_params
+            baseTableName: BATCH_JOB_EXECUTION_PARAMS
+            baseColumnNames: JOB_EXECUTION_ID
+            referencedTableName: BATCH_JOB_EXECUTION
+            referencedColumnNames: JOB_EXECUTION_ID
+            constraintName: JOB_EXEC_PARAMS_FK
 
         # ==== BATCH_STEP_EXECUTION ===========================================
         - createTable:
-            tableName: batch_step_execution
+            tableName: BATCH_STEP_EXECUTION
             columns:
               - column:
-                  name: step_execution_id
+                  name: STEP_EXECUTION_ID
                   type: BIGINT
                   constraints:
                     primaryKey: true
                     nullable: false
               - column:
-                  name: version
+                  name: VERSION
                   type: BIGINT
+                  constraints:
+                    nullable: false
               - column:
-                  name: step_name
+                  name: STEP_NAME
                   type: VARCHAR(100)
                   constraints:
                     nullable: false
               - column:
-                  name: job_execution_id
+                  name: JOB_EXECUTION_ID
                   type: BIGINT
                   constraints:
                     nullable: false
               - column:
-                  name: start_time
+                  name: START_TIME
                   type: TIMESTAMP
                   constraints:
                     nullable: false
               - column:
-                  name: end_time
+                  name: END_TIME
                   type: TIMESTAMP
               - column:
-                  name: status
+                  name: STATUS
                   type: VARCHAR(10)
               - column:
-                  name: commit_count
+                  name: COMMIT_COUNT
                   type: BIGINT
               - column:
-                  name: read_count
+                  name: READ_COUNT
                   type: BIGINT
               - column:
-                  name: filter_count
+                  name: FILTER_COUNT
                   type: BIGINT
               - column:
-                  name: write_count
+                  name: WRITE_COUNT
                   type: BIGINT
               - column:
-                  name: read_skip_count
+                  name: READ_SKIP_COUNT
                   type: BIGINT
               - column:
-                  name: write_skip_count
+                  name: WRITE_SKIP_COUNT
                   type: BIGINT
               - column:
-                  name: process_skip_count
+                  name: PROCESS_SKIP_COUNT
                   type: BIGINT
               - column:
-                  name: rollback_count
+                  name: ROLLBACK_COUNT
                   type: BIGINT
               - column:
-                  name: exit_code
+                  name: EXIT_CODE
                   type: VARCHAR(2500)
               - column:
-                  name: exit_message
+                  name: EXIT_MESSAGE
                   type: VARCHAR(2500)
               - column:
-                  name: last_updated
+                  name: LAST_UPDATED
                   type: TIMESTAMP
 
         - addForeignKeyConstraint:
-            baseTableName: batch_step_execution
-            baseColumnNames: job_execution_id
-            referencedTableName: batch_job_execution
-            referencedColumnNames: job_execution_id
-            constraintName: fk_step_exec_job_exec
+            baseTableName: BATCH_STEP_EXECUTION
+            baseColumnNames: JOB_EXECUTION_ID
+            referencedTableName: BATCH_JOB_EXECUTION
+            referencedColumnNames: JOB_EXECUTION_ID
+            constraintName: JOB_EXEC_STEP_FK
 
         # ==== BATCH_STEP_EXECUTION_CONTEXT ====================================
         - createTable:
-            tableName: batch_step_execution_context
+            tableName: BATCH_STEP_EXECUTION_CONTEXT
             columns:
               - column:
-                  name: step_execution_id
+                  name: STEP_EXECUTION_ID
                   type: BIGINT
                   constraints:
                     primaryKey: true
                     nullable: false
               - column:
-                  name: short_context
+                  name: SHORT_CONTEXT
                   type: VARCHAR(2500)
+                  constraints:
+                    nullable: false
               - column:
-                  name: serialized_context
+                  name: SERIALIZED_CONTEXT
                   type: TEXT
 
         - addForeignKeyConstraint:
-            baseTableName: batch_step_execution_context
-            baseColumnNames: step_execution_id
-            referencedTableName: batch_step_execution
-            referencedColumnNames: step_execution_id
-            constraintName: fk_step_exec_ctx
+            baseTableName: BATCH_STEP_EXECUTION_CONTEXT
+            baseColumnNames: STEP_EXECUTION_ID
+            referencedTableName: BATCH_STEP_EXECUTION
+            referencedColumnNames: STEP_EXECUTION_ID
+            constraintName: STEP_EXEC_CTX_FK
 
         # ==== BATCH_JOB_EXECUTION_CONTEXT =====================================
         - createTable:
-            tableName: batch_job_execution_context
+            tableName: BATCH_JOB_EXECUTION_CONTEXT
             columns:
               - column:
-                  name: job_execution_id
+                  name: JOB_EXECUTION_ID
                   type: BIGINT
                   constraints:
                     primaryKey: true
                     nullable: false
               - column:
-                  name: short_context
+                  name: SHORT_CONTEXT
                   type: VARCHAR(2500)
+                  constraints:
+                    nullable: false
               - column:
-                  name: serialized_context
+                  name: SERIALIZED_CONTEXT
                   type: TEXT
 
         - addForeignKeyConstraint:
-            baseTableName: batch_job_execution_context
-            baseColumnNames: job_execution_id
-            referencedTableName: batch_job_execution
-            referencedColumnNames: job_execution_id
-            constraintName: fk_job_exec_ctx
+            baseTableName: BATCH_JOB_EXECUTION_CONTEXT
+            baseColumnNames: JOB_EXECUTION_ID
+            referencedTableName: BATCH_JOB_EXECUTION
+            referencedColumnNames: JOB_EXECUTION_ID
+            constraintName: JOB_EXEC_CTX_FK
