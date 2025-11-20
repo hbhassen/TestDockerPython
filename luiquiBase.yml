@@ -1,26 +1,13 @@
 databaseChangeLog:
   - changeSet:
-      id: spring-batch-core-tables-and-sequences
+      id: spring-batch-metadata-postgres-v5_2
       author: hamdi
       changes:
+        # =========================
+        # TABLES
+        # =========================
 
-        # ==== SEQUENCES SPRING BATCH =========================================
-        - createSequence:
-            sequenceName: BATCH_STEP_EXECUTION_SEQ
-            maxValue: 9223372036854775807
-            cycle: false
-
-        - createSequence:
-            sequenceName: BATCH_JOB_EXECUTION_SEQ
-            maxValue: 9223372036854775807
-            cycle: false
-
-        - createSequence:
-            sequenceName: BATCH_JOB_SEQ
-            maxValue: 9223372036854775807
-            cycle: false
-
-        # ==== BATCH_JOB_INSTANCE =============================================
+        # BATCH_JOB_INSTANCE
         - createTable:
             tableName: BATCH_JOB_INSTANCE
             columns:
@@ -44,17 +31,12 @@ databaseChangeLog:
                   constraints:
                     nullable: false
 
-        - createIndex:
+        - addUniqueConstraint:
             tableName: BATCH_JOB_INSTANCE
-            indexName: JOB_INST_UN
-            unique: true
-            columns:
-              - column:
-                  name: JOB_NAME
-              - column:
-                  name: JOB_KEY
+            columnNames: JOB_NAME, JOB_KEY
+            constraintName: JOB_INST_UN
 
-        # ==== BATCH_JOB_EXECUTION ============================================
+        # BATCH_JOB_EXECUTION
         - createTable:
             tableName: BATCH_JOB_EXECUTION
             columns:
@@ -80,9 +62,11 @@ databaseChangeLog:
               - column:
                   name: START_TIME
                   type: TIMESTAMP
+                  defaultValueComputed: null
               - column:
                   name: END_TIME
                   type: TIMESTAMP
+                  defaultValueComputed: null
               - column:
                   name: STATUS
                   type: VARCHAR(10)
@@ -95,18 +79,15 @@ databaseChangeLog:
               - column:
                   name: LAST_UPDATED
                   type: TIMESTAMP
-              - column:
-                  name: JOB_CONFIGURATION_LOCATION
-                  type: VARCHAR(2500)
 
         - addForeignKeyConstraint:
             baseTableName: BATCH_JOB_EXECUTION
             baseColumnNames: JOB_INSTANCE_ID
+            constraintName: JOB_INST_EXEC_FK
             referencedTableName: BATCH_JOB_INSTANCE
             referencedColumnNames: JOB_INSTANCE_ID
-            constraintName: JOB_INST_EXEC_FK
 
-        # ==== BATCH_JOB_EXECUTION_PARAMS =====================================
+        # *** BATCH_JOB_EXECUTION_PARAMS – VERSION SPRING BATCH 5.x ***
         - createTable:
             tableName: BATCH_JOB_EXECUTION_PARAMS
             columns:
@@ -116,27 +97,18 @@ databaseChangeLog:
                   constraints:
                     nullable: false
               - column:
-                  name: TYPE_CD
-                  type: VARCHAR(6)
-                  constraints:
-                    nullable: false
-              - column:
-                  name: KEY_NAME
+                  name: PARAMETER_NAME
                   type: VARCHAR(100)
                   constraints:
                     nullable: false
               - column:
-                  name: STRING_VAL
-                  type: VARCHAR(250)
+                  name: PARAMETER_TYPE
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
               - column:
-                  name: DATE_VAL
-                  type: TIMESTAMP
-              - column:
-                  name: LONG_VAL
-                  type: BIGINT
-              - column:
-                  name: DOUBLE_VAL
-                  type: DOUBLE PRECISION
+                  name: PARAMETER_VALUE
+                  type: VARCHAR(2500)
               - column:
                   name: IDENTIFYING
                   type: CHAR(1)
@@ -146,11 +118,11 @@ databaseChangeLog:
         - addForeignKeyConstraint:
             baseTableName: BATCH_JOB_EXECUTION_PARAMS
             baseColumnNames: JOB_EXECUTION_ID
+            constraintName: JOB_EXEC_PARAMS_FK
             referencedTableName: BATCH_JOB_EXECUTION
             referencedColumnNames: JOB_EXECUTION_ID
-            constraintName: JOB_EXEC_PARAMS_FK
 
-        # ==== BATCH_STEP_EXECUTION ===========================================
+        # BATCH_STEP_EXECUTION (avec CREATE_TIME pour 5.x)
         - createTable:
             tableName: BATCH_STEP_EXECUTION
             columns:
@@ -176,13 +148,18 @@ databaseChangeLog:
                   constraints:
                     nullable: false
               - column:
-                  name: START_TIME
+                  name: CREATE_TIME
                   type: TIMESTAMP
                   constraints:
                     nullable: false
               - column:
+                  name: START_TIME
+                  type: TIMESTAMP
+                  defaultValueComputed: null
+              - column:
                   name: END_TIME
                   type: TIMESTAMP
+                  defaultValueComputed: null
               - column:
                   name: STATUS
                   type: VARCHAR(10)
@@ -223,11 +200,11 @@ databaseChangeLog:
         - addForeignKeyConstraint:
             baseTableName: BATCH_STEP_EXECUTION
             baseColumnNames: JOB_EXECUTION_ID
+            constraintName: JOB_EXEC_STEP_FK
             referencedTableName: BATCH_JOB_EXECUTION
             referencedColumnNames: JOB_EXECUTION_ID
-            constraintName: JOB_EXEC_STEP_FK
 
-        # ==== BATCH_STEP_EXECUTION_CONTEXT ====================================
+        # BATCH_STEP_EXECUTION_CONTEXT
         - createTable:
             tableName: BATCH_STEP_EXECUTION_CONTEXT
             columns:
@@ -249,11 +226,11 @@ databaseChangeLog:
         - addForeignKeyConstraint:
             baseTableName: BATCH_STEP_EXECUTION_CONTEXT
             baseColumnNames: STEP_EXECUTION_ID
+            constraintName: STEP_EXEC_CTX_FK
             referencedTableName: BATCH_STEP_EXECUTION
             referencedColumnNames: STEP_EXECUTION_ID
-            constraintName: STEP_EXEC_CTX_FK
 
-        # ==== BATCH_JOB_EXECUTION_CONTEXT =====================================
+        # BATCH_JOB_EXECUTION_CONTEXT
         - createTable:
             tableName: BATCH_JOB_EXECUTION_CONTEXT
             columns:
@@ -275,6 +252,31 @@ databaseChangeLog:
         - addForeignKeyConstraint:
             baseTableName: BATCH_JOB_EXECUTION_CONTEXT
             baseColumnNames: JOB_EXECUTION_ID
+            constraintName: JOB_EXEC_CTX_FK
             referencedTableName: BATCH_JOB_EXECUTION
             referencedColumnNames: JOB_EXECUTION_ID
-            constraintName: JOB_EXEC_CTX_FK
+
+        # =========================
+        # SEQUENCES (Spring Batch 5.x, Postgres)
+        # =========================
+
+        - createSequence:
+            sequenceName: BATCH_STEP_EXECUTION_SEQ
+            startValue: 0
+            minValue: 0
+            maxValue: 9223372036854775807
+            cycle: false
+
+        - createSequence:
+            sequenceName: BATCH_JOB_EXECUTION_SEQ
+            startValue: 0
+            minValue: 0
+            maxValue: 9223372036854775807
+            cycle: false
+
+        - createSequence:
+            sequenceName: BATCH_JOB_SEQ
+            startValue: 0
+            minValue: 0
+            maxValue: 9223372036854775807
+            cycle: false
