@@ -1,14 +1,12 @@
 # 📘 Guide API REST paginée — Spring Boot 3 / Angular
 
-Ce fichier décrit comment créer une API REST paginée avec Spring Boot 3 + JDK 17 + Angular.
+Ce document explique comment créer une API REST paginée.
 
 ---
 
-## ✅ 1. Dépendances Maven
+## 1. Dépendances Maven
 
-Fichier : `pom.xml`
-
-\`\`\`xml
+~~~xml
 <dependencies>
     <dependency>
         <groupId>org.springframework.boot</groupId>
@@ -26,25 +24,25 @@ Fichier : `pom.xml`
         <scope>runtime</scope>
     </dependency>
 </dependencies>
-\`\`\`
+~~~
 
 ---
 
-## Configuration DB (`application.properties`)
+## 2. Configuration DB
 
-\`\`\`properties
+~~~properties
 spring.datasource.url=jdbc:postgresql://localhost:5432/ma_base
 spring.datasource.username=postgres
 spring.datasource.password=postgres
 spring.jpa.hibernate.ddl-auto=update
 spring.jpa.show-sql=true
-\`\`\`
+~~~
 
 ---
 
-## ✅ 2. Entité JPA — `User.java`
+## 3. Entité JPA – User.java
 
-\`\`\`java
+~~~java
 package com.example.demo.user;
 
 import jakarta.persistence.*;
@@ -52,7 +50,6 @@ import jakarta.persistence.*;
 @Entity
 @Table(name="users")
 public class User {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -61,7 +58,6 @@ public class User {
     private String email;
 
     public User() {}
-
     public User(String username, String email) {
         this.username = username;
         this.email = email;
@@ -74,13 +70,13 @@ public class User {
     public void setUsername(String username) { this.username = username; }
     public void setEmail(String email) { this.email = email; }
 }
-\`\`\`
+~~~
 
 ---
 
-## ✅ 3. Repository — `UserRepository.java`
+## 4. Repository – UserRepository.java
 
-\`\`\`java
+~~~java
 package com.example.demo.user;
 
 import org.springframework.data.domain.Page;
@@ -90,13 +86,13 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface UserRepository extends JpaRepository<User, Long> {
     Page<User> findByUsernameContainingIgnoreCase(String username, Pageable pageable);
 }
-\`\`\`
+~~~
 
 ---
 
-## ✅ 4. Service — `UserService.java`
+## 5. Service – UserService.java
 
-\`\`\`java
+~~~java
 package com.example.demo.user;
 
 import org.springframework.data.domain.Page;
@@ -120,13 +116,13 @@ public class UserService {
         return repo.findByUsernameContainingIgnoreCase(username, PageRequest.of(page, size));
     }
 }
-\`\`\`
+~~~
 
 ---
 
-## ✅ 5. Controller — `UserController.java`
+## 6. Controller – UserController.java
 
-\`\`\`java
+~~~java
 package com.example.demo.user;
 
 import org.springframework.data.domain.Page;
@@ -158,32 +154,30 @@ public class UserController {
         return ResponseEntity.ok(service.searchUsers(username, page, size));
     }
 }
-\`\`\`
+~~~
 
 ---
 
-## ✅ 6. Exemple de JSON retourné
+## 7. Exemple JSON
 
-\`\`\`json
+~~~json
 {
   "content": [
-    { "id": 1, "username": "hamdi", "email": "h@example.com" },
-    { "id": 2, "username": "salma", "email": "s@example.com" }
+    {"id": 1, "username": "hamdi", "email": "h@example.com"},
+    {"id": 2, "username": "salma", "email": "s@example.com"}
   ],
   "totalElements": 1543,
   "totalPages": 155,
   "size": 10,
   "number": 0
 }
-\`\`\`
+~~~
 
 ---
 
-## ✅ 7. Angular — Interface + Service
+## 8. Angular – Interface & Service
 
-### interface `Page<T>` et `User`
-
-\`\`\`ts
+~~~ts
 export interface Page<T> {
   content: T[];
   totalElements: number;
@@ -197,14 +191,9 @@ export interface User {
   username: string;
   email: string;
 }
-\`\`\`
 
-### Service Angular — `user.service.ts`
-
-\`\`\`ts
 @Injectable({ providedIn: 'root' })
 export class UserService {
-
   private baseUrl = '/api/users';
 
   constructor(private http: HttpClient) {}
@@ -215,13 +204,13 @@ export class UserService {
     });
   }
 }
-\`\`\`
+~~~
 
 ---
 
-## ✅ 8. Angular Component — `user-list.component.ts`
+## 9. Angular Component
 
-\`\`\`ts
+~~~ts
 export class UserListComponent {
 
   users: User[] = [];
@@ -243,33 +232,23 @@ export class UserListComponent {
     });
   }
 }
-\`\`\`
+~~~
 
 ---
 
-## 🎯 9. Bonnes pratiques
+## 10. Bonnes pratiques
 
-- Pagination **obligatoire** côté backend  
-- Limiter size (10 / 20 / 50)  
-- Ajouter index SQL sur les colonnes filtrées  
-- Utiliser DTO pour éviter surcharge JSON  
-- Activer compression GZIP :
+- Pagination toujours backend  
+- Index SQL sur colonnes filtrées  
+- DTO légers  
+- Compression GZIP :
 
-\`\`\`properties
+~~~properties
 server.compression.enabled=true
 server.compression.mime-types=application/json
 server.compression.min-response-size=1024
-\`\`\`
+~~~
 
 ---
 
-## 🚫 10. Pièges à éviter
-
-- ❌ Paginer seulement côté Angular  
-- ❌ Envoyer 50 000 lignes en une seule réponse  
-- ❌ Ne pas indexer les colonnes filtrées  
-- ❌ Utiliser List<T> au lieu de Page<T>
-
----
-
-## 🏁 Fin du document
+## Fin du document
