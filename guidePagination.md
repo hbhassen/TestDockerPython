@@ -2,12 +2,13 @@
 
 Ce fichier décrit comment créer une API REST paginée avec Spring Boot 3 + JDK 17 + Angular.
 
------------------------------------------------------
-SECTION 1 — DÉPENDANCES MAVEN
------------------------------------------------------
+---
 
-Fichier : pom.xml (extrait)
+## ✅ 1. Dépendances Maven
 
+Fichier : `pom.xml`
+
+\`\`\`xml
 <dependencies>
     <dependency>
         <groupId>org.springframework.boot</groupId>
@@ -25,22 +26,25 @@ Fichier : pom.xml (extrait)
         <scope>runtime</scope>
     </dependency>
 </dependencies>
+\`\`\`
 
-application.properties :
+---
 
+## Configuration DB (`application.properties`)
+
+\`\`\`properties
 spring.datasource.url=jdbc:postgresql://localhost:5432/ma_base
-spring.datasource.username=monuser
-spring.datasource.password=monpassword
+spring.datasource.username=postgres
+spring.datasource.password=postgres
 spring.jpa.hibernate.ddl-auto=update
 spring.jpa.show-sql=true
+\`\`\`
 
+---
 
------------------------------------------------------
-SECTION 2 — ENTITÉ JPA
------------------------------------------------------
+## ✅ 2. Entité JPA — `User.java`
 
-Fichier : User.java
-
+\`\`\`java
 package com.example.demo.user;
 
 import jakarta.persistence.*;
@@ -48,6 +52,7 @@ import jakarta.persistence.*;
 @Entity
 @Table(name="users")
 public class User {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -56,6 +61,7 @@ public class User {
     private String email;
 
     public User() {}
+
     public User(String username, String email) {
         this.username = username;
         this.email = email;
@@ -64,17 +70,17 @@ public class User {
     public Long getId() { return id; }
     public String getUsername() { return username; }
     public String getEmail() { return email; }
+
     public void setUsername(String username) { this.username = username; }
     public void setEmail(String email) { this.email = email; }
 }
+\`\`\`
 
+---
 
------------------------------------------------------
-SECTION 3 — REPOSITORY
------------------------------------------------------
+## ✅ 3. Repository — `UserRepository.java`
 
-Fichier : UserRepository.java
-
+\`\`\`java
 package com.example.demo.user;
 
 import org.springframework.data.domain.Page;
@@ -84,14 +90,13 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface UserRepository extends JpaRepository<User, Long> {
     Page<User> findByUsernameContainingIgnoreCase(String username, Pageable pageable);
 }
+\`\`\`
 
+---
 
------------------------------------------------------
-SECTION 4 — SERVICE
------------------------------------------------------
+## ✅ 4. Service — `UserService.java`
 
-Fichier : UserService.java
-
+\`\`\`java
 package com.example.demo.user;
 
 import org.springframework.data.domain.Page;
@@ -115,14 +120,13 @@ public class UserService {
         return repo.findByUsernameContainingIgnoreCase(username, PageRequest.of(page, size));
     }
 }
+\`\`\`
 
+---
 
------------------------------------------------------
-SECTION 5 — CONTROLLER
------------------------------------------------------
+## ✅ 5. Controller — `UserController.java`
 
-Fichier : UserController.java
-
+\`\`\`java
 package com.example.demo.user;
 
 import org.springframework.data.domain.Page;
@@ -154,14 +158,13 @@ public class UserController {
         return ResponseEntity.ok(service.searchUsers(username, page, size));
     }
 }
+\`\`\`
 
+---
 
------------------------------------------------------
-SECTION 6 — EXEMPLE RÉPONSE JSON
------------------------------------------------------
+## ✅ 6. Exemple de JSON retourné
 
-Exemple de retour JSON :
-
+\`\`\`json
 {
   "content": [
     { "id": 1, "username": "hamdi", "email": "h@example.com" },
@@ -172,14 +175,15 @@ Exemple de retour JSON :
   "size": 10,
   "number": 0
 }
+\`\`\`
 
+---
 
------------------------------------------------------
-SECTION 7 — ANGULAR SERVICE
------------------------------------------------------
+## ✅ 7. Angular — Interface + Service
 
-Fichier : user.service.ts
+### interface `Page<T>` et `User`
 
+\`\`\`ts
 export interface Page<T> {
   content: T[];
   totalElements: number;
@@ -193,27 +197,31 @@ export interface User {
   username: string;
   email: string;
 }
+\`\`\`
 
+### Service Angular — `user.service.ts`
+
+\`\`\`ts
 @Injectable({ providedIn: 'root' })
 export class UserService {
-  private base = '/api/users';
+
+  private baseUrl = '/api/users';
 
   constructor(private http: HttpClient) {}
 
   getUsers(page: number, size: number) {
-    return this.http.get<Page<User>>(this.base, {
+    return this.http.get<Page<User>>(this.baseUrl, {
       params: { page, size }
     });
   }
 }
+\`\`\`
 
+---
 
------------------------------------------------------
-SECTION 8 — ANGULAR COMPONENT
------------------------------------------------------
+## ✅ 8. Angular Component — `user-list.component.ts`
 
-Fichier : user-list.component.ts
-
+\`\`\`ts
 export class UserListComponent {
 
   users: User[] = [];
@@ -235,34 +243,33 @@ export class UserListComponent {
     });
   }
 }
+\`\`\`
 
+---
 
------------------------------------------------------
-SECTION 9 — BONNES PRATIQUES
------------------------------------------------------
+## 🎯 9. Bonnes pratiques
 
-✔ Pagination toujours côté backend  
-✔ Limiter size max  
-✔ Ajouter des index DB  
-✔ DTO allégés pour les grosses entités  
-✔ Activer GZIP dans application.properties :
+- Pagination **obligatoire** côté backend  
+- Limiter size (10 / 20 / 50)  
+- Ajouter index SQL sur les colonnes filtrées  
+- Utiliser DTO pour éviter surcharge JSON  
+- Activer compression GZIP :
 
+\`\`\`properties
 server.compression.enabled=true
 server.compression.mime-types=application/json
 server.compression.min-response-size=1024
+\`\`\`
 
+---
 
------------------------------------------------------
-SECTION 10 — PIÈGES CLASSIQUES
------------------------------------------------------
+## 🚫 10. Pièges à éviter
 
-❌ Paginer seulement côté Angular  
-❌ Renvoyer 10k lignes en un seul JSON  
-❌ Utiliser List<T> au lieu de Page<T>  
-❌ Faire des filtres non indexés  
-❌ Faire size = 50000 (abusé)  
+- ❌ Paginer seulement côté Angular  
+- ❌ Envoyer 50 000 lignes en une seule réponse  
+- ❌ Ne pas indexer les colonnes filtrées  
+- ❌ Utiliser List<T> au lieu de Page<T>
 
+---
 
------------------------------------------------------
-FIN DU DOCUMENT
------------------------------------------------------
+## 🏁 Fin du document
