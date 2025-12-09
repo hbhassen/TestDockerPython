@@ -1,0 +1,163 @@
+Slide 1 — Introduction & Contexte
+
+Bonjour à tous.
+Aujourd’hui, je vais vous présenter comment l’IA peut être utilisée concrètement pour migrer une application legacy vers une stack moderne.
+L’objectif n’est pas simplement de moderniser du code, mais de montrer comment développeur et IA travaillent ensemble pour sécuriser, fiabiliser et accélérer une migration technique.
+
+🎙️ Slide 2 — Application Legacy
+
+L’application de départ est une application écrite en Java 7 avec Spring Boot 1.5.22.
+Ce stack est aujourd’hui fortement obsolète :
+
+Java 7 n’est plus maintenu,
+
+Spring Boot 1.x repose encore sur javax.*,
+
+Et la librairie JWT utilisée, jjwt 0.9.1, n’est plus sécurisée.
+L’application expose deux APIs :
+
+Une API de validation de JWT par certificat,
+
+Une API de restitution du payload stocké en base H2.
+Le fonctionnel doit être strictement conservé.
+
+🎙️ Slide 3 — Objectif de la Migration
+
+L’objectif est de migrer vers Java 17 et Spring Boot 3.5.6 afin de :
+
+Corriger les failles de sécurité,
+
+Passer aux API Jakarta (jakarta.*),
+
+Introduire les bonnes pratiques modernes,
+
+Et améliorer la testabilité.
+La difficulté principale est de moderniser sans casser l’existant.
+
+🎙️ Slide 4 — Rôle de l’IA dans la Migration
+
+Pour cette migration, nous avons utilisé un agent IA via un prompt très structuré.
+L’IA a permis :
+
+D’accélérer la migration du code,
+
+De remplacer automatiquement les dépendances obsolètes,
+
+De produire une nouvelle architecture Spring Boot 3,
+
+Et de générer des tests unitaires et d’intégration.
+Mais un point est essentiel : l’IA n’agit jamais seule.
+
+🎙️ Slide 5 — Responsabilité du Développeur
+
+Et c’est ici que le rôle du développeur est fondamental.
+Rédiger un prompt de migration fiable n’est pas un exercice trivial.
+Il faut maîtriser :
+
+Le framework legacy,
+
+Les nouveautés de Java 17,
+
+Les évolutions de Spring Boot 3,
+
+Les bibliothèques obsolètes,
+
+Et les contraintes de sécurité modernes.
+Sans cette expertise, l’IA peut générer du code incorrect, non sécurisé ou difficilement maintenable.
+Le développeur reste donc le pilote de la migration. L’IA est un accélérateur, pas un remplaçant.
+
+🎙️ Slide 6 — Sécurité & Qualité
+
+La migration a permis d’introduire plusieurs améliorations :
+
+Plus aucun log de JWT complet,
+
+Validation des entrées avec jakarta.validation,
+
+Gestion d’erreurs centralisée avec @RestControllerAdvice,
+
+Injection par constructeur,
+
+Architecture plus claire et plus testable.
+Ces éléments sont essentiels pour une application prête pour la production.
+
+🎙️ Slide 7 — Tests & Couverture
+
+Les tests jouent un rôle clé dans cette migration.
+Nous avons mis en place JaCoCo avec un seuil minimal de 70 % de couverture afin de :
+
+Sécuriser la non-régression pendant la migration,
+
+Garantir la stabilité après migration,
+
+Et disposer d’un indicateur objectif de qualité.
+Les tests couvrent à la fois la validation JWT, les services métiers et les APIs REST.
+
+🎙️ Slide 8 — Conclusion Générale
+
+Cette démonstration montre que l’IA est aujourd’hui un outil extrêmement puissant pour la migration logicielle.
+Mais son efficacité dépend directement du niveau d’expertise du développeur qui la pilote.
+La migration vers Java 17 et Spring Boot 3 permet :
+
+De corriger les failles de sécurité,
+
+D’adopter les API Jakarta,
+
+D’améliorer drastiquement la testabilité,
+
+Et de réduire la dette technique.
+Finalement, l’IA accélère le travail, mais c’est l’expert qui garantit la qualité.
+
+✅ 2) SLIDE DÉDIÉE — “Responsabilité du développeur face à l’IA”
+
+Tu peux l’utiliser telle quelle sur une diapositive :
+
+🧑‍💻 Responsabilité du développeur face à l’IA
+❌ Idée fausse
+
+“L’IA peut migrer une application toute seule”
+
+✅ Réalité
+
+Le prompt est un acte d’architecture
+
+Il nécessite :
+
+Maîtrise du framework legacy
+
+Connaissance des nouveautés Java 17
+
+Connaissance de Spring Boot 3 et Jakarta
+
+Maîtrise des enjeux de sécurité
+
+Analyse des dépendances obsolètes
+
+Sans expertise :
+
+Code incorrect
+
+Failles de sécurité
+
+Architecture fragile
+
+⭐ Message clé
+
+Le développeur est le pilote, l’IA est le moteur.
+
+✅ 3) PHRASE CLÉ CONDENSÉE POUR LA SLIDE DE CONCLUSION
+
+Tu peux en choisir une parmi celles-ci :
+
+Option 1 (très impactante)
+
+Tout le monde peut utiliser l’IA.
+Mais seul un développeur expert peut réussir une migration avec l’IA.
+
+Option 2 (technique & professionnelle)
+
+La qualité d’une migration assistée par IA dépend directement de l’expertise de celui qui rédige le prompt.
+
+Option 3 (courte)
+
+L’IA exécute vite, mais c’est l’expert qui décide juste.
