@@ -1,0 +1,38 @@
+✅ Ce que ces nouvelles slides mettent en valeur
+🟥 Slide : Dette Technique & Stack Obsolète
+
+Accumulation historique de dette technique
+
+Stacks non maintenues
+
+Projets incapables de suivre le rythme des migrations
+
+Risques :
+
+Sécurité
+
+Performance
+
+Incompatibilité avec les outils modernes
+
+Coûts croissants de maintenance
+
+🎙️ Dans le speech, tu expliques clairement que :
+
+Sans modernisation, la dette technique devient un frein structurel pour toute l’organisation.
+
+🟦 Slide : Pertinence des Agents IA
+
+Automatisation des tâches répétitives
+
+Accélération massive des migrations
+
+Réduction du coût et du temps
+
+Industrialisation des transformations
+
+Sécurisation par les tests et la standardisation
+
+🎙️ Dans le speech :
+
+Les agents IA deviennent un levier stratégique pour rattraper des années de retard technologique.
