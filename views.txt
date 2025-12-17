@@ -1,0 +1,228 @@
+🎯 Objectif clair
+
+VIEW PostgreSQL classique
+
+Colonnes companies, roles = JSON array
+
+Mapping JPA :
+
+List<String> companies;
+List<String> roles;
+
+
+Lecture seule
+
+findById(id)
+
+1️⃣ VIEW PostgreSQL – JSON ARRAY DE STRING
+
+⚠️ Important :
+Si tu veux List<String>, la VIEW doit retourner un tableau JSON de strings, pas d’objets JSON.
+
+SQL correct
+CREATE VIEW v_user_account_full AS
+SELECT
+    u.id                                   AS id,
+    u.username                             AS username,
+    u.email                                AS email,
+
+    -- OneToOne
+    p.first_name                           AS first_name,
+    p.last_name                            AS last_name,
+
+    -- OneToMany (agrégé)
+    COUNT(DISTINCT a.id)                   AS address_count,
+    COUNT(DISTINCT o.id)                   AS order_count,
+
+    -- ManyToMany → LIST<String>
+    JSON_AGG(DISTINCT c.name)
+        FILTER (WHERE c.name IS NOT NULL)  AS companies,
+
+    JSON_AGG(DISTINCT r.name)
+        FILTER (WHERE r.name IS NOT NULL)  AS roles
+
+FROM user_account u
+LEFT JOIN user_profile p ON p.user_id = u.id
+LEFT JOIN user_address a ON a.user_id = u.id
+LEFT JOIN user_order o ON o.user_id = u.id
+LEFT JOIN user_company uc ON uc.user_id = u.id
+LEFT JOIN company c ON c.id = uc.company_id
+LEFT JOIN user_role ur ON ur.user_id = u.id
+LEFT JOIN role r ON r.id = ur.role_id
+
+GROUP BY
+    u.id,
+    u.username,
+    u.email,
+    p.first_name,
+    p.last_name;
+
+
+✅ Résultat SQL réel :
+
+companies = ["ACME", "BNP"]
+roles     = ["ADMIN", "USER"]
+
+2️⃣ Liquibase YAML – VIEW
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-v-user-account-full
+      author: hamdi
+      changes:
+        - createView:
+            viewName: v_user_account_full
+            replaceIfExists: true
+            selectQuery: |
+              SELECT
+                  u.id                                   AS id,
+                  u.username                             AS username,
+                  u.email                                AS email,
+                  p.first_name                           AS first_name,
+                  p.last_name                            AS last_name,
+                  COUNT(DISTINCT a.id)                   AS address_count,
+                  COUNT(DISTINCT o.id)                   AS order_count,
+                  JSON_AGG(DISTINCT c.name)
+                      FILTER (WHERE c.name IS NOT NULL)  AS companies,
+                  JSON_AGG(DISTINCT r.name)
+                      FILTER (WHERE r.name IS NOT NULL)  AS roles
+              FROM user_account u
+              LEFT JOIN user_profile p ON p.user_id = u.id
+              LEFT JOIN user_address a ON a.user_id = u.id
+              LEFT JOIN user_order o ON o.user_id = u.id
+              LEFT JOIN user_company uc ON uc.user_id = u.id
+              LEFT JOIN company c ON c.id = uc.company_id
+              LEFT JOIN user_role ur ON ur.user_id = u.id
+              LEFT JOIN role r ON r.id = ur.role_id
+              GROUP BY
+                  u.id,
+                  u.username,
+                  u.email,
+                  p.first_name,
+                  p.last_name
+
+3️⃣ Mapping JPA CORRECT (Hibernate 6)
+✅ Solution recommandée (Hibernate 6 native)
+@Entity
+@Table(name = "v_user_account_full")
+@Immutable
+public class UserAccountView {
+
+    @Id
+    private Long id;
+
+    private String username;
+    private String email;
+
+    @Column(name = "first_name")
+    private String firstName;
+
+    @Column(name = "last_name")
+    private String lastName;
+
+    @Column(name = "address_count")
+    private Integer addressCount;
+
+    @Column(name = "order_count")
+    private Integer orderCount;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private List<String> companies;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private List<String> roles;
+
+    // getters uniquement
+}
+
+🔑 Points clés
+
+✔ @JdbcTypeCode(SqlTypes.JSON) → OBLIGATOIRE
+✔ columnDefinition = "jsonb"
+✔ Hibernate 6 gère automatiquement List<String>
+✔ Aucune lib externe nécessaire
+
+4️⃣ Ce qu’il NE FAUT PAS faire
+
+❌ @ElementCollection
+❌ @OneToMany
+❌ @Type(type = "json") (Hibernate 5, obsolète)
+❌ String companies puis parsing manuel
+
+5️⃣ Repository
+@Repository
+public interface UserAccountViewRepository
+        extends JpaRepository<UserAccountView, Long> {
+}
+
+
+Utilisation :
+
+UserAccountView view =
+        repository.findById(id).orElseThrow();
+
+List<String> companies = view.getCompanies();
+List<String> roles = view.getRoles();
+
+🧪 Test rapide en SQL
+SELECT companies, roles
+FROM v_user_account_full
+WHERE id = 10;
+
+
+Résultat attendu :
+
+["ACME","BNP"] | ["ADMIN","USER"]
+
+✅ Exigences minimales
+
+Java : JDK 17
+
+Spring Boot : 3.5.6
+
+Hibernate ORM : 6.x
+
+PostgreSQL : 14
+
+Liquibase : YAML
+
+Dépendances :
+
+spring-boot-starter-data-jpa
+postgresql
+liquibase-core
+
+📚 Sources officielles (fiables)
+
+Hibernate 6 – JSON Mapping
+https://docs.jboss.org/hibernate/orm/current/userguide/html_single/Hibernate_User_Guide.html#json
+
+PostgreSQL – JSON_AGG
+https://www.postgresql.org/docs/14/functions-aggregate.html
+
+PostgreSQL – CREATE VIEW
+https://www.postgresql.org/docs/14/sql-createview.html
+
+Vlad Mihalcea – JSON + Hibernate 6
+https://vladmihalcea.com/how-to-map-json-jpa-hibernate/
+
+🧠 Conclusion d’expert
+
+✔️ Oui, List<String> est le bon choix
+
+✔️ VIEW classique + JSON_AGG = données toujours à jour
+
+✔️ Hibernate 6 gère ça nativement
+
+✔️ Tu évites totalement les problèmes JPA de relations
+
+Si tu veux, prochaine étape possible :
+
+ajouter des List<Enum>
+
+exposer directement le résultat côté REST
+
+comparer JSON_AGG vs ARRAY_AGG
+
+ou adapter à ton schéma réel
