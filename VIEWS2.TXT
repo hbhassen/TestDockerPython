@@ -1,0 +1,246 @@
+🎯 Objectif final (clair)
+
+Pour un User :
+
+companies → List<String>
+
+roles → List<String>
+
+addresses (OneToMany) → List<String> ou List<AddressView>
+
+orders (OneToMany) → List<Long> ou List<OrderView>
+
+👉 Tout dans une VIEW PostgreSQL classique
+👉 1 ligne = 1 user
+👉 Aucun COUNT
+
+🧠 Règle d’or (à retenir)
+
+❗ Une collection (OneToMany, ManyToMany) DOIT être agrégée dans une VIEW
+👉 sinon tu casses la cardinalité (duplication de lignes)
+
+👉 La seule bonne solution = JSON_AGG
+
+1️⃣ VIEW PostgreSQL – LISTES pour OneToMany
+Exemple : addresses et orders en LISTE
+Hypothèse métier
+
+user_address : plusieurs adresses par user
+
+user_order : plusieurs commandes par user
+
+✅ SQL COMPLET (OneToMany = LISTE)
+CREATE VIEW v_user_account_full AS
+SELECT
+    u.id                                   AS id,
+    u.username                             AS username,
+    u.email                                AS email,
+
+    -- OneToOne
+    p.first_name                           AS first_name,
+    p.last_name                            AS last_name,
+
+    -- OneToMany → LISTE
+    JSON_AGG(DISTINCT a.street)
+        FILTER (WHERE a.id IS NOT NULL)    AS addresses,
+
+    JSON_AGG(DISTINCT o.order_number)
+        FILTER (WHERE o.id IS NOT NULL)    AS orders,
+
+    -- ManyToMany → LISTE
+    JSON_AGG(DISTINCT c.name)
+        FILTER (WHERE c.id IS NOT NULL)    AS companies,
+
+    JSON_AGG(DISTINCT r.name)
+        FILTER (WHERE r.id IS NOT NULL)    AS roles
+
+FROM user_account u
+
+LEFT JOIN user_profile p
+       ON p.user_id = u.id
+
+LEFT JOIN user_address a
+       ON a.user_id = u.id
+
+LEFT JOIN user_order o
+       ON o.user_id = u.id
+
+LEFT JOIN user_company uc
+       ON uc.user_id = u.id
+
+LEFT JOIN company c
+       ON c.id = uc.company_id
+
+LEFT JOIN user_role ur
+       ON ur.user_id = u.id
+
+LEFT JOIN role r
+       ON r.id = ur.role_id
+
+GROUP BY
+    u.id,
+    u.username,
+    u.email,
+    p.first_name,
+    p.last_name;
+
+🔎 Résultat réel SQL
+{
+  "addresses": [
+    "12 rue Victor Hugo",
+    "5 avenue de Paris"
+  ],
+  "orders": [
+    "ORD-2024-001",
+    "ORD-2024-002"
+  ],
+  "companies": ["ACME", "BNP"],
+  "roles": ["ADMIN", "USER"]
+}
+
+2️⃣ Liquibase YAML – VIEW
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-v-user-account-full
+      author: hamdi
+      changes:
+        - createView:
+            viewName: v_user_account_full
+            replaceIfExists: true
+            selectQuery: |
+              SELECT
+                  u.id                                   AS id,
+                  u.username                             AS username,
+                  u.email                                AS email,
+                  p.first_name                           AS first_name,
+                  p.last_name                            AS last_name,
+                  JSON_AGG(DISTINCT a.street)
+                      FILTER (WHERE a.id IS NOT NULL)    AS addresses,
+                  JSON_AGG(DISTINCT o.order_number)
+                      FILTER (WHERE o.id IS NOT NULL)    AS orders,
+                  JSON_AGG(DISTINCT c.name)
+                      FILTER (WHERE c.id IS NOT NULL)    AS companies,
+                  JSON_AGG(DISTINCT r.name)
+                      FILTER (WHERE r.id IS NOT NULL)    AS roles
+              FROM user_account u
+              LEFT JOIN user_profile p ON p.user_id = u.id
+              LEFT JOIN user_address a ON a.user_id = u.id
+              LEFT JOIN user_order o ON o.user_id = u.id
+              LEFT JOIN user_company uc ON uc.user_id = u.id
+              LEFT JOIN company c ON c.id = uc.company_id
+              LEFT JOIN user_role ur ON ur.user_id = u.id
+              LEFT JOIN role r ON r.id = ur.role_id
+              GROUP BY
+                  u.id,
+                  u.username,
+                  u.email,
+                  p.first_name,
+                  p.last_name
+
+3️⃣ Mapping JPA – LISTES (Hibernate 6)
+✅ Cas 1 : List<String> (simple, recommandé)
+@Entity
+@Table(name = "v_user_account_full")
+@Immutable
+public class UserAccountView {
+
+    @Id
+    private Long id;
+
+    private String username;
+    private String email;
+
+    @Column(name = "first_name")
+    private String firstName;
+
+    @Column(name = "last_name")
+    private String lastName;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private List<String> addresses;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private List<String> orders;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private List<String> companies;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private List<String> roles;
+}
+
+✅ Cas 2 : List<AddressView> (objet structuré)
+SQL
+JSON_AGG(
+  DISTINCT jsonb_build_object(
+    'street', a.street,
+    'city', a.city
+  )
+) FILTER (WHERE a.id IS NOT NULL) AS addresses
+
+Java
+public record AddressView(String street, String city) {}
+
+@JdbcTypeCode(SqlTypes.JSON)
+@Column(columnDefinition = "jsonb")
+private List<AddressView> addresses;
+
+
+✔ Hibernate 6 le supporte nativement
+
+4️⃣ Ce qu’il NE FAUT PAS faire
+
+❌ COUNT(a.id) (tu l’as explicitement refusé)
+❌ @OneToMany dans la VIEW
+❌ plusieurs lignes par user
+❌ parsing JSON manuel
+
+5️⃣ Repository (inchangé)
+@Repository
+public interface UserAccountViewRepository
+        extends JpaRepository<UserAccountView, Long> {
+}
+
+🧪 Test SQL obligatoire
+SELECT addresses, orders
+FROM v_user_account_full
+WHERE id = 1;
+
+✅ Exigences minimales
+
+JDK : 17
+
+Spring Boot : 3.5.6
+
+Hibernate : 6.x
+
+PostgreSQL : 14
+
+Liquibase : YAML
+
+📚 Sources officielles
+
+PostgreSQL – JSON_AGG
+https://www.postgresql.org/docs/14/functions-aggregate.html
+
+PostgreSQL – CREATE VIEW
+https://www.postgresql.org/docs/14/sql-createview.html
+
+Hibernate 6 – JSON Mapping
+https://docs.jboss.org/hibernate/orm/current/userguide/html_single/Hibernate_User_Guide.html#json
+
+🧠 Conclusion finale (sans détour)
+
+✔️ Oui, OneToMany = LISTE dans la VIEW
+
+✔️ JSON_AGG est la SEULE bonne solution
+
+✔️ List<String> ou List<Objet> → les deux sont supportés
+
+✔️ Tu gardes findById
+
+✔️ Tu élimines définitivement les problèmes de performance JPA
