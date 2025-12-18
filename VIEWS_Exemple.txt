@@ -1,0 +1,331 @@
+Je réécris l’exemple COMPLET, strictement identique fonctionnellement, mais en ajoutant explicitement TOUS les index nécessaires, avec :
+
+📌 justification de chaque index
+
+📌 version SQL
+
+📌 version Liquibase YAML
+
+📌 aucun changement côté service/repository (bonne pratique)
+
+Toujours basé sur :
+Spring Boot 3.5.6 · JDK 17 · PostgreSQL 14 · Liquibase YAML · VIEW classique
+
+🧠 Rappel clé (important)
+
+❗ Une VIEW PostgreSQL n’a pas d’index
+
+👉 Les index sont créés UNIQUEMENT sur les tables sources
+
+👉 PostgreSQL les utilise automatiquement lors des requêtes sur la VIEW
+
+1️⃣ SCHÉMA SQL (TABLES) — inchangé
+CREATE TABLE user_account (
+    id BIGSERIAL PRIMARY KEY,
+    username VARCHAR(100),
+    email VARCHAR(150)
+);
+
+CREATE TABLE user_profile (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT UNIQUE,
+    first_name VARCHAR(100),
+    last_name VARCHAR(100)
+);
+
+CREATE TABLE user_address (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT,
+    street VARCHAR(200),
+    city VARCHAR(100)
+);
+
+CREATE TABLE tag (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(50)
+);
+
+CREATE TABLE address_tag (
+    address_id BIGINT,
+    tag_id BIGINT
+);
+
+CREATE TABLE company (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(100)
+);
+
+CREATE TABLE user_company (
+    user_id BIGINT,
+    company_id BIGINT
+);
+
+CREATE TABLE role (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(50)
+);
+
+CREATE TABLE user_role (
+    user_id BIGINT,
+    role_id BIGINT
+);
+
+2️⃣ INDEX SQL (🔥 PARTIE CRITIQUE 🔥)
+📌 Index sur les relations OneToOne / OneToMany
+CREATE INDEX idx_user_profile_user_id
+ON user_profile(user_id);
+
+CREATE INDEX idx_user_address_user_id
+ON user_address(user_id);
+
+Pourquoi ?
+
+utilisé dans JOIN ... ON p.user_id = u.id
+
+utilisé dans JOIN ... ON a.user_id = u.id
+
+évite Seq Scan
+
+📌 Index sur le ManyToMany Address ↔ Tag
+CREATE INDEX idx_address_tag_address_id
+ON address_tag(address_id);
+
+CREATE INDEX idx_address_tag_tag_id
+ON address_tag(tag_id);
+
+Pourquoi ?
+
+utilisé dans la sous-requête agrégée
+
+indispensable pour JSON_AGG(tags)
+
+📌 Index sur ManyToMany User ↔ Company
+CREATE INDEX idx_user_company_user_id
+ON user_company(user_id);
+
+CREATE INDEX idx_user_company_company_id
+ON user_company(company_id);
+
+📌 Index sur ManyToMany User ↔ Role
+CREATE INDEX idx_user_role_user_id
+ON user_role(user_id);
+
+CREATE INDEX idx_user_role_role_id
+ON user_role(role_id);
+
+📌 Résumé des index (vision globale)
+Table	Colonne	Raison
+user_profile	user_id	JOIN 1–1
+user_address	user_id	JOIN 1–N
+address_tag	address_id	sous-requête
+address_tag	tag_id	sous-requête
+user_company	user_id	N–N
+user_company	company_id	N–N
+user_role	user_id	N–N
+user_role	role_id	N–N
+
+👉 AUCUN index inutile
+
+3️⃣ VIEW POSTGRESQL (INCHANGÉE)
+
+⚠️ AUCUNE référence aux index ici (normal)
+
+CREATE VIEW v_user_account_full AS
+SELECT
+    u.id,
+    u.username,
+    u.email,
+    p.first_name,
+    p.last_name,
+
+    addr.addresses,
+
+    JSON_AGG(DISTINCT c.name)
+        FILTER (WHERE c.name IS NOT NULL) AS companies,
+
+    JSON_AGG(DISTINCT r.name)
+        FILTER (WHERE r.name IS NOT NULL) AS roles
+
+FROM user_account u
+LEFT JOIN user_profile p ON p.user_id = u.id
+
+LEFT JOIN (
+    SELECT
+        a.user_id,
+        JSON_AGG(
+            jsonb_build_object(
+                'street', a.street,
+                'city', a.city,
+                'tags', t.tags
+            )
+        ) AS addresses
+    FROM user_address a
+    LEFT JOIN (
+        SELECT
+            at.address_id,
+            JSON_AGG(t.name) AS tags
+        FROM address_tag at
+        JOIN tag t ON t.id = at.tag_id
+        GROUP BY at.address_id
+    ) t ON t.address_id = a.id
+    GROUP BY a.user_id
+) addr ON addr.user_id = u.id
+
+LEFT JOIN user_company uc ON uc.user_id = u.id
+LEFT JOIN company c ON c.id = uc.company_id
+
+LEFT JOIN user_role ur ON ur.user_id = u.id
+LEFT JOIN role r ON r.id = ur.role_id
+
+GROUP BY
+    u.id, u.username, u.email,
+    p.first_name, p.last_name,
+    addr.addresses;
+
+4️⃣ LIQUIBASE YAML (TABLES + INDEX + VIEW)
+db.changelog-master.yaml
+databaseChangeLog:
+  - include:
+      file: db/changelog/001-schema.yaml
+  - include:
+      file: db/changelog/002-indexes.yaml
+  - include:
+      file: db/changelog/003-view.yaml
+
+002-indexes.yaml (🔥 ESSENTIEL 🔥)
+databaseChangeLog:
+  - changeSet:
+      id: create-indexes
+      author: hamdi
+      changes:
+        - createIndex:
+            tableName: user_profile
+            indexName: idx_user_profile_user_id
+            columns:
+              - column:
+                  name: user_id
+
+        - createIndex:
+            tableName: user_address
+            indexName: idx_user_address_user_id
+            columns:
+              - column:
+                  name: user_id
+
+        - createIndex:
+            tableName: address_tag
+            indexName: idx_address_tag_address_id
+            columns:
+              - column:
+                  name: address_id
+
+        - createIndex:
+            tableName: address_tag
+            indexName: idx_address_tag_tag_id
+            columns:
+              - column:
+                  name: tag_id
+
+        - createIndex:
+            tableName: user_company
+            indexName: idx_user_company_user_id
+            columns:
+              - column:
+                  name: user_id
+
+        - createIndex:
+            tableName: user_company
+            indexName: idx_user_company_company_id
+            columns:
+              - column:
+                  name: company_id
+
+        - createIndex:
+            tableName: user_role
+            indexName: idx_user_role_user_id
+            columns:
+              - column:
+                  name: user_id
+
+        - createIndex:
+            tableName: user_role
+            indexName: idx_user_role_role_id
+            columns:
+              - column:
+                  name: role_id
+
+5️⃣ ENTITÉ VIEW JPA (INCHANGÉE)
+@Entity
+@Table(name = "v_user_account_full")
+@Immutable
+public class UserAccountView {
+
+    @Id
+    private Long id;
+
+    private String username;
+    private String email;
+
+    @Column(name = "first_name")
+    private String firstName;
+
+    @Column(name = "last_name")
+    private String lastName;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private List<AddressView> addresses;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private List<String> companies;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private List<String> roles;
+}
+
+6️⃣ SERVICE (INCHANGÉ – BONNE PRATIQUE)
+@Service
+@Transactional(readOnly = true)
+public class UserAccountQueryService {
+
+    private final UserAccountViewRepository repository;
+
+    public UserAccountQueryService(UserAccountViewRepository repository) {
+        this.repository = repository;
+    }
+
+    public UserAccountView getById(Long id) {
+        return repository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    }
+}
+
+7️⃣ VALIDATION OBLIGATOIRE (à faire)
+EXPLAIN ANALYZE
+SELECT *
+FROM v_user_account_full
+WHERE id = 1;
+
+Tu dois voir :
+
+Index Scan using idx_user_address_user_id
+
+Index Scan using idx_address_tag_address_id
+
+Index Scan using idx_user_company_user_id
+
+Index Scan using idx_user_role_user_id
+
+✅ CONCLUSION D’EXPERT
+
+✔️ Les index sont INDISPENSABLES
+
+✔️ Ils sont totalement transparents pour la VIEW
+
+✔️ Sans index → VIEW lente
+
+✔️ Avec index → performance stable et prévisible
+
+✔️ Tu as maintenant une architecture PostgreSQL + Spring Boot robuste
