@@ -1,0 +1,5 @@
+  front-redirect-url: "http://localhost:4200"
+  front-redirect-parameter: "front"
+  front-redirects:
+    demo2-front: "http://localhost:4200"
+    demo2-front19: "http://localhost:4300"
