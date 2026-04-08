@@ -1,0 +1,248 @@
+boolean isBlank(String value) {
+    return value == null || value.trim().isEmpty()
+}
+
+void requireValue(String label, String value) {
+    if (isBlank(value)) {
+        throw new IllegalArgumentException("Le parametre '${label}' est obligatoire.")
+    }
+}
+
+String normalizeRelativeOutputDirectory(String rawValue) {
+    String candidate = isBlank(rawValue) ? "generated-projects" : rawValue.trim()
+    if (candidate == "." || candidate == "./" || candidate == ".\\") {
+        return "generated-projects"
+    }
+
+    String normalized = candidate.replace('\\', '/')
+    if (normalized.startsWith("/") || normalized ==~ /^[A-Za-z]:\/.*/) {
+        throw new IllegalArgumentException("OUTPUT_DIRECTORY doit etre relatif au workspace Jenkins.")
+    }
+
+    List<String> segments = normalized.split("/").findAll { !it.isEmpty() }
+    if (segments.isEmpty()) {
+        return "generated-projects"
+    }
+    if (segments.any { it == "." || it == ".." }) {
+        throw new IllegalArgumentException("OUTPUT_DIRECTORY ne doit pas contenir '.' ou '..'.")
+    }
+
+    return segments.join("/")
+}
+
+String resolveWorkspacePath(String workspace, String relativePath, boolean unix) {
+    String separator = unix ? "/" : "\\"
+    String normalizedRelative = relativePath.replace("/", separator).replace("\\", separator)
+    if (workspace.endsWith(separator)) {
+        return workspace + normalizedRelative
+    }
+    return workspace + separator + normalizedRelative
+}
+
+String quoteForSh(String value) {
+    return "'" + value.replace("'", "'\"'\"'") + "'"
+}
+
+String quoteForCmd(String value) {
+    return '"' + value.replace('"', ' ') + '"'
+}
+
+String buildCommand(String executable, List<String> args, boolean unix) {
+    String renderedArgs = args.collect { unix ? quoteForSh(it) : quoteForCmd(it) }.join(" ")
+    return unix ? "${quoteForSh(executable)} ${renderedArgs}" : "${executable} ${renderedArgs}"
+}
+
+String maskSensitiveArgument(String argument) {
+    if (argument.startsWith("-DdatabasePassword=")) {
+        return "-DdatabasePassword=********"
+    }
+    return argument
+}
+
+pipeline {
+    agent any
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: "20"))
+    }
+
+    parameters {
+        string(name: "ARCHETYPE_CATALOG", defaultValue: "local", trim: true, description: "Catalogue Maven de l archetype.")
+        string(name: "ARCHETYPE_GROUP_ID", defaultValue: "com.company.archetype", trim: true, description: "GroupId de l archetype.")
+        string(name: "ARCHETYPE_ARTIFACT_ID", defaultValue: "springboot-enterprise-archetype", trim: true, description: "ArtifactId de l archetype.")
+        string(name: "ARCHETYPE_VERSION", defaultValue: "1.0.0", trim: true, description: "Version de l archetype.")
+
+        string(name: "GROUP_ID", defaultValue: "com.company.demo", trim: true, description: "GroupId Maven du projet genere.")
+        string(name: "ARTIFACT_ID", defaultValue: "enterprise-app-h2", trim: true, description: "ArtifactId Maven du projet genere.")
+        string(name: "PROJECT_VERSION", defaultValue: "1.0.0-SNAPSHOT", trim: true, description: "Version Maven du projet genere.")
+        string(name: "PACKAGE_NAME", defaultValue: "com.company.demo", trim: true, description: "Package Java racine du projet genere.")
+
+        choice(name: "WEB_STACK", choices: ["webmvc", "webflux"], description: "Pile web a generer.")
+        choice(name: "DATABASE_TYPE", choices: ["h2", "postgresql"], description: "Type de base de donnees a generer.")
+        string(name: "DATABASE_NAME", defaultValue: "enterprise_h2", trim: true, description: "Nom logique de la base.")
+        string(name: "DATABASE_SCHEMA", defaultValue: "app_schema", trim: true, description: "Schema principal de la base.")
+        string(name: "DATABASE_HOST", defaultValue: "localhost", trim: true, description: "Host PostgreSQL. Ignore pour H2.")
+        string(name: "DATABASE_PORT", defaultValue: "5432", trim: true, description: "Port PostgreSQL. Ignore pour H2.")
+        string(name: "DATABASE_USERNAME", defaultValue: "postgres", trim: true, description: "Utilisateur PostgreSQL. Ignore pour H2.")
+        password(name: "DATABASE_PASSWORD", defaultValue: "postgres", description: "Mot de passe PostgreSQL. Ignore pour H2.")
+
+        booleanParam(name: "ENABLE_GIT_PUBLISH", defaultValue: false, description: "Publie le projet genere sur un repository Git.")
+        string(name: "GIT_REPOSITORY_URL", defaultValue: "", trim: true, description: "URL du repository Git cible.")
+        string(name: "GIT_BRANCH", defaultValue: "", trim: true, description: "Branche Git cible.")
+
+        string(name: "OUTPUT_DIRECTORY", defaultValue: "generated-projects", trim: true, description: "Repertoire relatif au workspace Jenkins pour deposer le projet genere.")
+        booleanParam(name: "CLEAN_OUTPUT_DIRECTORY", defaultValue: true, description: "Nettoie le repertoire de sortie avant generation.")
+        booleanParam(name: "BUILD_ARCHETYPE_FIRST", defaultValue: true, description: "Construit et installe l archetype dans le repository Maven local avant la generation.")
+    }
+
+    stages {
+        stage("Checkout") {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage("Validate Parameters") {
+            steps {
+                script {
+                    requireValue("ARCHETYPE_CATALOG", params.ARCHETYPE_CATALOG)
+                    requireValue("ARCHETYPE_GROUP_ID", params.ARCHETYPE_GROUP_ID)
+                    requireValue("ARCHETYPE_ARTIFACT_ID", params.ARCHETYPE_ARTIFACT_ID)
+                    requireValue("ARCHETYPE_VERSION", params.ARCHETYPE_VERSION)
+                    requireValue("GROUP_ID", params.GROUP_ID)
+                    requireValue("ARTIFACT_ID", params.ARTIFACT_ID)
+                    requireValue("PROJECT_VERSION", params.PROJECT_VERSION)
+                    requireValue("PACKAGE_NAME", params.PACKAGE_NAME)
+                    requireValue("DATABASE_NAME", params.DATABASE_NAME)
+                    requireValue("DATABASE_SCHEMA", params.DATABASE_SCHEMA)
+
+                    if (params.DATABASE_TYPE == "postgresql") {
+                        requireValue("DATABASE_HOST", params.DATABASE_HOST)
+                        requireValue("DATABASE_PORT", params.DATABASE_PORT)
+                        requireValue("DATABASE_USERNAME", params.DATABASE_USERNAME)
+                        requireValue("DATABASE_PASSWORD", params.DATABASE_PASSWORD)
+                    }
+
+                    if (params.ENABLE_GIT_PUBLISH) {
+                        requireValue("GIT_REPOSITORY_URL", params.GIT_REPOSITORY_URL)
+                        requireValue("GIT_BRANCH", params.GIT_BRANCH)
+                    } else if (!isBlank(params.GIT_REPOSITORY_URL) || !isBlank(params.GIT_BRANCH)) {
+                        echo "Les parametres Git sont ignores car ENABLE_GIT_PUBLISH=false."
+                    }
+
+                    env.NORMALIZED_OUTPUT_DIRECTORY = normalizeRelativeOutputDirectory(params.OUTPUT_DIRECTORY)
+                    env.RESOLVED_OUTPUT_DIRECTORY = resolveWorkspacePath(env.WORKSPACE, env.NORMALIZED_OUTPUT_DIRECTORY, isUnix())
+                    env.GENERATED_PROJECT_DIRECTORY = resolveWorkspacePath(env.RESOLVED_OUTPUT_DIRECTORY, params.ARTIFACT_ID, isUnix())
+                    env.ARCHIVE_PATTERN = "${env.NORMALIZED_OUTPUT_DIRECTORY}/${params.ARTIFACT_ID}/**"
+                }
+            }
+        }
+
+        stage("Build Archetype") {
+            when {
+                expression { return params.BUILD_ARCHETYPE_FIRST }
+            }
+            steps {
+                script {
+                    List<String> args = [
+                        "-B",
+                        "clean",
+                        "install",
+                        "-DskipTests"
+                    ]
+                    String command = buildCommand("mvn", args, isUnix())
+                    echo "Construction de l archetype avant generation."
+                    if (isUnix()) {
+                        sh command
+                    } else {
+                        bat command
+                    }
+                }
+            }
+        }
+
+        stage("Prepare Output Directory") {
+            steps {
+                script {
+                    if (isUnix()) {
+                        String cleanCommand = params.CLEAN_OUTPUT_DIRECTORY
+                                ? "rm -rf ${quoteForSh(env.RESOLVED_OUTPUT_DIRECTORY)} && mkdir -p ${quoteForSh(env.RESOLVED_OUTPUT_DIRECTORY)}"
+                                : "mkdir -p ${quoteForSh(env.RESOLVED_OUTPUT_DIRECTORY)}"
+                        sh cleanCommand
+                    } else {
+                        String outputPath = quoteForCmd(env.RESOLVED_OUTPUT_DIRECTORY)
+                        String cleanCommand = params.CLEAN_OUTPUT_DIRECTORY
+                                ? "@echo off\r\nif exist ${outputPath} rmdir /s /q ${outputPath}\r\nmkdir ${outputPath}"
+                                : "@echo off\r\nif not exist ${outputPath} mkdir ${outputPath}"
+                        bat cleanCommand
+                    }
+                }
+            }
+        }
+
+        stage("Generate Project") {
+            steps {
+                script {
+                    List<String> args = [
+                        "-B",
+                        "archetype:generate",
+                        "-DarchetypeCatalog=${params.ARCHETYPE_CATALOG}",
+                        "-DarchetypeGroupId=${params.ARCHETYPE_GROUP_ID}",
+                        "-DarchetypeArtifactId=${params.ARCHETYPE_ARTIFACT_ID}",
+                        "-DarchetypeVersion=${params.ARCHETYPE_VERSION}",
+                        "-DgroupId=${params.GROUP_ID}",
+                        "-DartifactId=${params.ARTIFACT_ID}",
+                        "-Dversion=${params.PROJECT_VERSION}",
+                        "-Dpackage=${params.PACKAGE_NAME}",
+                        "-DwebStack=${params.WEB_STACK}",
+                        "-DdatabaseType=${params.DATABASE_TYPE}",
+                        "-DdatabaseName=${params.DATABASE_NAME}",
+                        "-DdatabaseSchema=${params.DATABASE_SCHEMA}",
+                        "-DinteractiveMode=false",
+                        "-DoutputDirectory=${env.RESOLVED_OUTPUT_DIRECTORY}"
+                    ]
+
+                    if (params.DATABASE_TYPE == "postgresql") {
+                        args.add("-DdatabaseHost=${params.DATABASE_HOST}")
+                        args.add("-DdatabasePort=${params.DATABASE_PORT}")
+                        args.add("-DdatabaseUsername=${params.DATABASE_USERNAME}")
+                        args.add("-DdatabasePassword=${params.DATABASE_PASSWORD}")
+                    }
+
+                    if (params.ENABLE_GIT_PUBLISH) {
+                        args.add("-DgitRepositoryUrl=${params.GIT_REPOSITORY_URL}")
+                        args.add("-DgitBranch=${params.GIT_BRANCH}")
+                    }
+
+                    List<String> safeArgs = args.collect { maskSensitiveArgument(it) }
+                    echo "Commande de generation : ${buildCommand('mvn', safeArgs, isUnix())}"
+
+                    String command = buildCommand("mvn", args, isUnix())
+                    if (isUnix()) {
+                        sh command
+                    } else {
+                        bat command
+                    }
+                }
+            }
+        }
+
+        stage("Archive Generated Project") {
+            steps {
+                archiveArtifacts artifacts: env.ARCHIVE_PATTERN, fingerprint: true
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Projet genere dans : ${env.GENERATED_PROJECT_DIRECTORY}"
+            echo "Artefacts Jenkins archives : ${env.ARCHIVE_PATTERN}"
+        }
+        failure {
+            echo "La generation du projet a echoue. Verifiez les parametres Jenkins et les logs Maven."
+        }
+    }
+}
