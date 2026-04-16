@@ -1,163 +1,432 @@
-Slide 1 — Introduction & Contexte
-
-Bonjour à tous.
-Aujourd’hui, je vais vous présenter comment l’IA peut être utilisée concrètement pour migrer une application legacy vers une stack moderne.
-L’objectif n’est pas simplement de moderniser du code, mais de montrer comment développeur et IA travaillent ensemble pour sécuriser, fiabiliser et accélérer une migration technique.
-
-🎙️ Slide 2 — Application Legacy
-
-L’application de départ est une application écrite en Java 7 avec Spring Boot 1.5.22.
-Ce stack est aujourd’hui fortement obsolète :
-
-Java 7 n’est plus maintenu,
-
-Spring Boot 1.x repose encore sur javax.*,
-
-Et la librairie JWT utilisée, jjwt 0.9.1, n’est plus sécurisée.
-L’application expose deux APIs :
-
-Une API de validation de JWT par certificat,
-
-Une API de restitution du payload stocké en base H2.
-Le fonctionnel doit être strictement conservé.
-
-🎙️ Slide 3 — Objectif de la Migration
-
-L’objectif est de migrer vers Java 17 et Spring Boot 3.5.6 afin de :
-
-Corriger les failles de sécurité,
-
-Passer aux API Jakarta (jakarta.*),
-
-Introduire les bonnes pratiques modernes,
-
-Et améliorer la testabilité.
-La difficulté principale est de moderniser sans casser l’existant.
-
-🎙️ Slide 4 — Rôle de l’IA dans la Migration
-
-Pour cette migration, nous avons utilisé un agent IA via un prompt très structuré.
-L’IA a permis :
-
-D’accélérer la migration du code,
-
-De remplacer automatiquement les dépendances obsolètes,
-
-De produire une nouvelle architecture Spring Boot 3,
-
-Et de générer des tests unitaires et d’intégration.
-Mais un point est essentiel : l’IA n’agit jamais seule.
-
-🎙️ Slide 5 — Responsabilité du Développeur
-
-Et c’est ici que le rôle du développeur est fondamental.
-Rédiger un prompt de migration fiable n’est pas un exercice trivial.
-Il faut maîtriser :
-
-Le framework legacy,
-
-Les nouveautés de Java 17,
-
-Les évolutions de Spring Boot 3,
-
-Les bibliothèques obsolètes,
-
-Et les contraintes de sécurité modernes.
-Sans cette expertise, l’IA peut générer du code incorrect, non sécurisé ou difficilement maintenable.
-Le développeur reste donc le pilote de la migration. L’IA est un accélérateur, pas un remplaçant.
-
-🎙️ Slide 6 — Sécurité & Qualité
-
-La migration a permis d’introduire plusieurs améliorations :
-
-Plus aucun log de JWT complet,
-
-Validation des entrées avec jakarta.validation,
-
-Gestion d’erreurs centralisée avec @RestControllerAdvice,
-
-Injection par constructeur,
-
-Architecture plus claire et plus testable.
-Ces éléments sont essentiels pour une application prête pour la production.
-
-🎙️ Slide 7 — Tests & Couverture
-
-Les tests jouent un rôle clé dans cette migration.
-Nous avons mis en place JaCoCo avec un seuil minimal de 70 % de couverture afin de :
-
-Sécuriser la non-régression pendant la migration,
-
-Garantir la stabilité après migration,
-
-Et disposer d’un indicateur objectif de qualité.
-Les tests couvrent à la fois la validation JWT, les services métiers et les APIs REST.
-
-🎙️ Slide 8 — Conclusion Générale
-
-Cette démonstration montre que l’IA est aujourd’hui un outil extrêmement puissant pour la migration logicielle.
-Mais son efficacité dépend directement du niveau d’expertise du développeur qui la pilote.
-La migration vers Java 17 et Spring Boot 3 permet :
-
-De corriger les failles de sécurité,
-
-D’adopter les API Jakarta,
-
-D’améliorer drastiquement la testabilité,
-
-Et de réduire la dette technique.
-Finalement, l’IA accélère le travail, mais c’est l’expert qui garantit la qualité.
-
-✅ 2) SLIDE DÉDIÉE — “Responsabilité du développeur face à l’IA”
-
-Tu peux l’utiliser telle quelle sur une diapositive :
-
-🧑‍💻 Responsabilité du développeur face à l’IA
-❌ Idée fausse
-
-“L’IA peut migrer une application toute seule”
-
-✅ Réalité
-
-Le prompt est un acte d’architecture
-
-Il nécessite :
-
-Maîtrise du framework legacy
-
-Connaissance des nouveautés Java 17
-
-Connaissance de Spring Boot 3 et Jakarta
-
-Maîtrise des enjeux de sécurité
-
-Analyse des dépendances obsolètes
-
-Sans expertise :
-
-Code incorrect
-
-Failles de sécurité
-
-Architecture fragile
-
-⭐ Message clé
-
-Le développeur est le pilote, l’IA est le moteur.
-
-✅ 3) PHRASE CLÉ CONDENSÉE POUR LA SLIDE DE CONCLUSION
-
-Tu peux en choisir une parmi celles-ci :
-
-Option 1 (très impactante)
-
-Tout le monde peut utiliser l’IA.
-Mais seul un développeur expert peut réussir une migration avec l’IA.
-
-Option 2 (technique & professionnelle)
-
-La qualité d’une migration assistée par IA dépend directement de l’expertise de celui qui rédige le prompt.
-
-Option 3 (courte)
-
-L’IA exécute vite, mais c’est l’expert qui décide juste.
+import java.nio.charset.StandardCharsets
+import java.nio.file.DirectoryStream
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
+import java.nio.file.StandardCopyOption
+import java.security.MessageDigest
+import java.util.Comparator
+
+def projectProperties = new Properties()
+if (request.getProperties() != null) {
+    projectProperties.putAll(request.getProperties())
+}
+
+String repositoryUrl = projectProperties.getProperty("gitRepositoryUrl", "").trim()
+String branch = projectProperties.getProperty("gitBranch", "").trim()
+String gitToken = projectProperties.getProperty("gitToken", "").trim()
+
+if ("__git_disabled__".equals(repositoryUrl)) {
+    repositoryUrl = ""
+}
+if ("__git_disabled__".equals(branch)) {
+    branch = ""
+}
+if ("__git_token_disabled__".equals(gitToken)) {
+    gitToken = ""
+}
+
+if (repositoryUrl.isEmpty() && branch.isEmpty()) {
+    return
+}
+
+if (repositoryUrl.isEmpty() || branch.isEmpty()) {
+    throw new IllegalStateException(
+            "Les parametres Git 'gitRepositoryUrl' et 'gitBranch' doivent etre renseignes ensemble."
+    )
+}
+
+String artifactIdValue = request.getArtifactId()
+if (artifactIdValue == null || artifactIdValue.isBlank()) {
+    artifactIdValue = projectProperties.getProperty("artifactId", "").trim()
+}
+
+Path generatedProjectDirectory = Paths.get(request.getOutputDirectory()).resolve(artifactIdValue).normalize()
+if (!Files.isDirectory(generatedProjectDirectory)) {
+    throw new IllegalStateException("Le repertoire du projet genere est introuvable : " + generatedProjectDirectory)
+}
+
+Path gitExecutable = findGitExecutableOnPath()
+if (gitExecutable == null) {
+    throw new IllegalStateException(
+            "Executable Git introuvable dans le PATH. Installez Git ou retirez les parametres Git."
+    )
+}
+
+println "Publication Git activee vers '${repositoryUrl}' sur la branche '${branch}'."
+
+Path tempRoot = Files.createTempDirectory("generated-project-git-")
+Path checkoutDirectory = tempRoot.resolve("checkout")
+
+try {
+    requireSuccess(
+            executeCommand([gitExecutable.toString(), "clone", repositoryUrl, checkoutDirectory.toString()], tempRoot),
+            "cloner le depot Git"
+    )
+
+    if (remoteBranchExists(gitExecutable, repositoryUrl, branch, tempRoot)) {
+        requireSuccess(
+                executeCommand(
+                        [
+                                gitExecutable.toString(),
+                                "-C",
+                                checkoutDirectory.toString(),
+                                "checkout",
+                                "-B",
+                                branch,
+                                "origin/" + branch
+                        ],
+                        tempRoot
+                ),
+                "selectionner la branche Git cible"
+        )
+    } else {
+        requireSuccess(
+                executeCommand(
+                        [
+                                gitExecutable.toString(),
+                                "-C",
+                                checkoutDirectory.toString(),
+                                "checkout",
+                                "--orphan",
+                                branch
+                        ],
+                        tempRoot
+                ),
+                "creer la branche Git cible"
+        )
+    }
+
+    deleteDirectoryContents(checkoutDirectory)
+    copyDirectoryContents(generatedProjectDirectory, checkoutDirectory)
+
+    requireSuccess(
+            executeCommand(
+                    [gitExecutable.toString(), "-C", checkoutDirectory.toString(), "add", "--all"],
+                    tempRoot
+            ),
+            "ajouter les fichiers au commit Git"
+    )
+
+    if (!hasPendingChanges(gitExecutable, checkoutDirectory, tempRoot)) {
+        println "Aucun changement Git a publier sur la branche '${branch}'."
+        return
+    }
+
+    ensureGitCommitIdentity(gitExecutable, checkoutDirectory, tempRoot, gitToken)
+
+    requireSuccess(
+            executeCommand(
+                    [
+                            gitExecutable.toString(),
+                            "-C",
+                            checkoutDirectory.toString(),
+                            "commit",
+                            "-m",
+                            buildCommitMessage(projectProperties, artifactIdValue)
+                    ],
+                    tempRoot
+            ),
+            "creer le commit Git"
+    )
+
+    requireSuccess(
+            executeCommand(
+                    [
+                            gitExecutable.toString(),
+                            "-C",
+                            checkoutDirectory.toString(),
+                            "push",
+                            "--set-upstream",
+                            "origin",
+                            branch
+                    ],
+                    tempRoot
+            ),
+            "publier la branche Git"
+    )
+
+    println "Projet genere publie sur la branche '${branch}'."
+} finally {
+    try {
+        deleteRecursively(tempRoot)
+    } catch (IOException ignored) {
+    }
+}
+
+Path findGitExecutableOnPath() {
+    String pathVariable = System.getenv("PATH")
+    if (pathVariable == null || pathVariable.isBlank()) {
+        return null
+    }
+
+    boolean windows = System.getProperty("os.name", "").toLowerCase().contains("win")
+    List<String> executableNames = windows
+            ? ["git.exe", "git.cmd", "git.bat", "git"]
+            : ["git"]
+
+    for (String pathEntry : pathVariable.split(java.io.File.pathSeparator)) {
+        if (pathEntry == null || pathEntry.isBlank()) {
+            continue
+        }
+
+        Path directory = Paths.get(pathEntry.trim())
+        for (String executableName : executableNames) {
+            Path candidate = directory.resolve(executableName)
+            if (Files.isRegularFile(candidate)) {
+                return candidate.normalize()
+            }
+        }
+    }
+    return null
+}
+
+boolean remoteBranchExists(Path gitExecutable, String repositoryUrl, String branch, Path workingDirectory) {
+    CommandResult result = executeCommand(
+            [
+                    gitExecutable.toString(),
+                    "ls-remote",
+                    "--exit-code",
+                    "--heads",
+                    repositoryUrl,
+                    branch
+            ],
+            workingDirectory
+    )
+
+    if (result.exitCode == 0) {
+        return true
+    }
+    if (result.exitCode == 2) {
+        return false
+    }
+
+    throw new IllegalStateException(
+            "Impossible de verifier la branche Git distante '${branch}'.\n${result.output}"
+    )
+}
+
+boolean hasPendingChanges(Path gitExecutable, Path checkoutDirectory, Path workingDirectory) {
+    CommandResult result = executeCommand(
+            [gitExecutable.toString(), "-C", checkoutDirectory.toString(), "status", "--short"],
+            workingDirectory
+    )
+    requireSuccess(result, "verifier l etat Git")
+    return !result.output.isBlank()
+}
+
+void ensureGitCommitIdentity(Path gitExecutable, Path checkoutDirectory, Path workingDirectory, String gitToken) {
+    if (gitToken != null && !gitToken.isBlank()) {
+        GitIdentity tokenIdentity = buildFallbackGitIdentity(gitToken)
+        configureGitLocalIdentity(gitExecutable, checkoutDirectory, workingDirectory, tokenIdentity)
+        println "gitToken fourni. Utilisation prioritaire d une identite technique locale pour le commit."
+        return
+    }
+
+    if (hasCommitIdentity(gitExecutable, checkoutDirectory, workingDirectory)) {
+        return
+    }
+
+    throw new IllegalStateException(
+            "Configuration Git utilisateur introuvable pour creer le commit. " +
+                    "Configurez 'user.name' et 'user.email' ou fournissez le parametre 'gitToken'."
+    )
+}
+
+void configureGitLocalIdentity(
+        Path gitExecutable,
+        Path checkoutDirectory,
+        Path workingDirectory,
+        GitIdentity gitIdentity
+) {
+    requireSuccess(
+            executeCommand(
+                    [
+                            gitExecutable.toString(),
+                            "-C",
+                            checkoutDirectory.toString(),
+                            "config",
+                            "user.name",
+                            gitIdentity.name
+                    ],
+                    workingDirectory
+            ),
+            "configurer l identite Git locale (user.name)"
+    )
+    requireSuccess(
+            executeCommand(
+                    [
+                            gitExecutable.toString(),
+                            "-C",
+                            checkoutDirectory.toString(),
+                            "config",
+                            "user.email",
+                            gitIdentity.email
+                    ],
+                    workingDirectory
+            ),
+            "configurer l identite Git locale (user.email)"
+    )
+}
+
+boolean hasCommitIdentity(Path gitExecutable, Path checkoutDirectory, Path workingDirectory) {
+    CommandResult authorIdentity = executeCommand(
+            [gitExecutable.toString(), "-C", checkoutDirectory.toString(), "var", "GIT_AUTHOR_IDENT"],
+            workingDirectory
+    )
+    if (authorIdentity.exitCode != 0) {
+        return false
+    }
+
+    CommandResult committerIdentity = executeCommand(
+            [gitExecutable.toString(), "-C", checkoutDirectory.toString(), "var", "GIT_COMMITTER_IDENT"],
+            workingDirectory
+    )
+    return committerIdentity.exitCode == 0
+}
+
+String buildCommitMessage(Properties properties, String artifactIdValue) {
+    String version = properties.getProperty("version", "").trim()
+    if (version.isEmpty()) {
+        return "Generate ${artifactIdValue} from archetype"
+    }
+    return "Generate ${artifactIdValue} ${version} from archetype"
+}
+
+GitIdentity buildFallbackGitIdentity(String gitToken) {
+    String tokenFingerprint = fingerprintGitToken(gitToken)
+    return new GitIdentity(
+            "archetype-generator",
+            "archetype-generator+${tokenFingerprint}@archetype.local"
+    )
+}
+
+String fingerprintGitToken(String gitToken) {
+    byte[] digest = MessageDigest.getInstance("SHA-256").digest(gitToken.getBytes(StandardCharsets.UTF_8))
+    StringBuilder hexBuilder = new StringBuilder(digest.length * 2)
+    for (byte currentByte : digest) {
+        hexBuilder.append(String.format("%02x", currentByte & 0xff))
+    }
+    return hexBuilder.substring(0, 12)
+}
+
+void deleteDirectoryContents(Path directory) {
+    DirectoryStream<Path> entries = Files.newDirectoryStream(directory)
+    try {
+        for (Path entry : entries) {
+            if (".git".equals(entry.getFileName().toString())) {
+                continue
+            }
+            deleteRecursively(entry)
+        }
+    } finally {
+        entries.close()
+    }
+}
+
+void copyDirectoryContents(Path sourceDirectory, Path targetDirectory) {
+    Files.walk(sourceDirectory).withCloseable { stream ->
+        List<Path> paths = stream.toList()
+        for (Path sourcePath : paths) {
+            Path relativePath = sourceDirectory.relativize(sourcePath)
+            if (relativePath.toString().isEmpty() || isNestedGitMetadata(relativePath)) {
+                continue
+            }
+
+            Path targetPath = targetDirectory.resolve(relativePath.toString())
+            if (Files.isDirectory(sourcePath)) {
+                Files.createDirectories(targetPath)
+            } else {
+                Path parentDirectory = targetPath.getParent()
+                if (parentDirectory != null) {
+                    Files.createDirectories(parentDirectory)
+                }
+                Files.copy(sourcePath, targetPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES)
+            }
+        }
+    }
+}
+
+boolean isNestedGitMetadata(Path relativePath) {
+    if (relativePath.getNameCount() == 0) {
+        return false
+    }
+    return ".git".equals(relativePath.getName(0).toString())
+}
+
+void deleteRecursively(Path path) {
+    if (path == null || Files.notExists(path)) {
+        return
+    }
+
+    IOException lastException = null
+    for (int attempt = 1; attempt <= 5; attempt++) {
+        try {
+            Files.walk(path).withCloseable { stream ->
+                List<Path> paths = stream.sorted(Comparator.reverseOrder()).toList()
+                for (Path currentPath : paths) {
+                    Files.deleteIfExists(currentPath)
+                }
+            }
+            return
+        } catch (IOException exception) {
+            lastException = exception
+            if (attempt == 5) {
+                break
+            }
+            try {
+                Thread.sleep(200L)
+            } catch (InterruptedException interruptedException) {
+                Thread.currentThread().interrupt()
+                throw new IOException(
+                        "Interruption pendant le nettoyage du repertoire temporaire Git.",
+                        interruptedException
+                )
+            }
+        }
+    }
+
+    throw lastException
+}
+
+CommandResult executeCommand(List<String> command, Path workingDirectory) {
+    ProcessBuilder processBuilder = new ProcessBuilder(command)
+    processBuilder.directory(workingDirectory.toFile())
+    processBuilder.redirectErrorStream(true)
+
+    Process process = processBuilder.start()
+    byte[] outputBytes
+    process.getInputStream().withCloseable { input ->
+        outputBytes = input.readAllBytes()
+    }
+    int exitCode = process.waitFor()
+    String output = new String(outputBytes, StandardCharsets.UTF_8).trim()
+    return new CommandResult(exitCode, output)
+}
+
+void requireSuccess(CommandResult result, String action) {
+    if (result.exitCode != 0) {
+        String details = result.output.isBlank() ? "(aucune sortie)" : result.output
+        throw new IllegalStateException("Impossible de ${action}.\n${details}")
+    }
+}
+
+class CommandResult {
+    final int exitCode
+    final String output
+
+    CommandResult(int exitCode, String output) {
+        this.exitCode = exitCode
+        this.output = output
+    }
+}
+
+class GitIdentity {
+    final String name
+    final String email
+
+    GitIdentity(String name, String email) {
+        this.name = name
+        this.email = email
+    }
+}
