@@ -1,0 +1,1072 @@
+Tu es un ingénieur logiciel senior Java/Jakarta EE spécialisé en architecture de librairies, Spring Boot, WildFly, sécurité applicative et API REST.
+
+Ta mission est de développer une librairie Java professionnelle appelée `server-status`, distribuée sous forme de JARs Maven, permettant d'exposer une API REST de vérification de l'état d'un serveur/application.
+
+OBJECTIF
+========
+Créer une librairie réutilisable pouvant être intégrée :
+
+1. Dans une application Spring Boot 3.x.
+2. Dans une application déployée sur WildFly/Jakarta EE.
+
+La librairie doit exposer une API REST permettant de vérifier l'état du serveur/application.
+
+L'objectif principal est de fournir une API très simple, robuste, légère et sécurisée.
+
+IMPORTANT :
+L'API publique de health check ne doit accepter AUCUN paramètre utilisateur permettant d'influencer :
+- une requête SQL ;
+- une commande système ;
+- un chemin de fichier ;
+- une URL externe ;
+- une expression ;
+- une requête LDAP ;
+- une requête Elasticsearch ;
+- un template ;
+- une sérialisation/désérialisation dangereuse.
+
+Le principe de sécurité principal est :
+"Do not accept user input when user input is not required."
+
+
+==================================================
+1. CONTRAINTES TECHNIQUES
+==================================================
+
+Java :
+- Java 17 minimum.
+- Utiliser uniquement des APIs compatibles Java 17.
+- Maven 3.9+.
+- Compiler avec `<maven.compiler.release>17</maven.compiler.release>`.
+
+Architecture Maven multi-module :
+
+server-status/
+├── pom.xml
+├── server-status-core/
+│   ├── pom.xml
+│   └── src/
+├── server-status-spring-boot/
+│   ├── pom.xml
+│   └── src/
+├── server-status-wildfly/
+│   ├── pom.xml
+│   └── src/
+├── server-status-integration-tests/
+│   ├── pom.xml
+│   └── src/
+└── README.md
+
+Modules :
+
+1. `server-status-core`
+   - Aucun couplage Spring Boot.
+   - Aucun couplage WildFly.
+   - Contenir toute la logique métier générique.
+   - Minimiser les dépendances.
+
+2. `server-status-spring-boot`
+   - Intégration Spring Boot.
+   - Auto-configuration.
+   - REST Controller.
+   - Compatible Spring Boot 3.x.
+   - Utiliser `jakarta.*`.
+
+3. `server-status-wildfly`
+   - Intégration Jakarta REST.
+   - Compatible avec WildFly/Jakarta EE.
+   - Ne pas dépendre de Spring Boot.
+
+4. `server-status-integration-tests`
+   - Tests d'intégration Spring Boot.
+   - Tests d'intégration REST.
+   - Préparer également une architecture permettant de tester WildFly.
+
+
+==================================================
+2. API PUBLIQUE
+==================================================
+
+Créer les endpoints suivants.
+
+Endpoint public minimal :
+
+GET /public/server-status/live
+
+Réponse HTTP 200 :
+
+{
+  "status": "UP"
+}
+
+Cet endpoint doit être extrêmement léger.
+
+Il ne doit :
+- effectuer aucune requête SQL ;
+- appeler aucune URL externe ;
+- lire aucun fichier ;
+- exécuter aucune commande ;
+- accepter aucun paramètre ;
+- accepter aucun body ;
+- accepter aucune URL fournie par le client.
+
+Créer également :
+
+GET /public/server-status/ready
+
+et :
+
+GET /public/server-status
+
+Le endpoint `/public/server-status` peut retourner davantage d'informations, mais aucune information sensible.
+
+Exemple :
+
+{
+  "status": "UP",
+  "application": "my-application",
+  "server": "Spring Boot",
+  "javaVersion": "17.0.x",
+  "uptimeSeconds": 123456,
+  "timestamp": "2026-08-24T03:00:00Z"
+}
+
+Ne jamais exposer publiquement :
+- hostname ;
+- IP interne ;
+- username ;
+- password ;
+- environment variables ;
+- classpath complet ;
+- filesystem paths ;
+- secrets ;
+- tokens ;
+- database URL ;
+- credentials ;
+- stack traces ;
+- configuration interne.
+
+
+==================================================
+3. MODÈLE MÉTIER
+==================================================
+
+Créer :
+
+public enum ServerStatus {
+    UP,
+    DOWN
+}
+
+Créer un DTO immutable :
+
+public record ServerStatusResponse(
+    ServerStatus status,
+    String application,
+    String server,
+    String javaVersion,
+    long uptimeSeconds,
+    Instant timestamp
+) {}
+
+Créer :
+
+public interface ServerStatusService {
+    ServerStatusResponse getStatus();
+}
+
+Créer une implémentation par défaut :
+
+DefaultServerStatusService
+
+Utiliser :
+- ManagementFactory.getRuntimeMXBean()
+- Runtime.version()
+- Instant.now()
+
+Ne jamais dépendre d'une base de données pour connaître l'état de base du serveur.
+
+
+==================================================
+4. SPRING BOOT
+==================================================
+
+Créer une auto-configuration :
+
+ServerStatusAutoConfiguration
+
+Utiliser :
+
+@AutoConfiguration
+
+et les annotations conditionnelles Spring Boot appropriées.
+
+Créer :
+
+ServerStatusController
+
+avec :
+
+@RestController
+
+et :
+
+@RequestMapping("/public/server-status")
+
+Endpoints :
+
+GET /live
+GET /ready
+GET /
+
+Utiliser :
+
+produces = MediaType.APPLICATION_JSON_VALUE
+
+Ne jamais accepter de paramètres inutiles.
+
+Créer :
+
+META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports
+
+contenant la classe d'auto-configuration.
+
+L'intégration doit fonctionner simplement avec :
+
+<dependency>
+    <groupId>...</groupId>
+    <artifactId>server-status-spring-boot</artifactId>
+    <version>...</version>
+</dependency>
+
+sans demander à l'utilisateur de déclarer manuellement le Controller.
+
+
+==================================================
+5. WILDFLY / JAKARTA REST
+==================================================
+
+Créer une ressource Jakarta REST :
+
+@Path("/public/server-status")
+@Produces(MediaType.APPLICATION_JSON)
+
+Créer :
+
+ServerStatusResource
+
+avec :
+
+@GET
+@Path("/live")
+
+@GET
+@Path("/ready")
+
+@GET
+
+Ne pas utiliser Spring dans ce module.
+
+Utiliser les packages `jakarta.*`.
+
+Créer une configuration Jakarta REST appropriée permettant l'intégration dans une application WAR WildFly.
+
+Documenter précisément la compatibilité WildFly.
+
+
+==================================================
+6. SÉCURITÉ
+==================================================
+
+La sécurité est une priorité absolue.
+
+L'API doit être conçue conformément aux bonnes pratiques OWASP.
+
+Ne jamais concaténer des entrées utilisateur dans :
+- SQL ;
+- LDAP ;
+- commandes système ;
+- URLs ;
+- expressions ;
+- chemins ;
+- templates.
+
+Ne jamais utiliser :
+
+Runtime.getRuntime().exec(userInput)
+
+ProcessBuilder(userInput)
+
+String.format("SELECT ... %s", userInput)
+
+"SELECT ... " + userInput
+
+createNativeQuery("..." + userInput)
+
+ou toute construction équivalente.
+
+Le endpoint public ne doit accepter aucun paramètre utilisateur.
+
+
+==================================================
+7. PROTECTION SQL INJECTION
+==================================================
+
+La fonctionnalité de health check de base ne doit avoir AUCUN accès SQL.
+
+Ne pas ajouter JDBC, JPA ou Hibernate au module core.
+
+Si une future extension nécessite une base de données, prévoir une architecture permettant d'utiliser :
+- PreparedStatement ;
+- paramètres nommés ;
+- Spring Data repository ;
+- validation stricte.
+
+Ne jamais construire de SQL dynamique à partir d'une entrée HTTP.
+
+
+==================================================
+8. PROTECTION XSS
+==================================================
+
+L'API retourne exclusivement du JSON.
+
+Utiliser :
+
+Content-Type: application/json
+
+Ne jamais retourner de HTML.
+
+Ajouter :
+
+X-Content-Type-Options: nosniff
+
+Ajouter également :
+
+Cache-Control: no-store
+
+si approprié.
+
+Ne pas réfléchir ou recopier arbitrairement des headers utilisateur dans la réponse.
+
+
+==================================================
+9. SSRF
+==================================================
+
+Aucune URL ne doit être acceptée par l'API publique.
+
+Ne pas utiliser HttpClient/WebClient/RestTemplate pour déterminer le health status de base.
+
+Le health check doit uniquement inspecter l'état local du processus/JVM/application.
+
+Ne jamais appeler :
+- localhost ;
+- 127.0.0.1 ;
+- 169.254.169.254 ;
+- réseau privé ;
+- URL fournie par le client.
+
+
+==================================================
+10. PATH TRAVERSAL
+==================================================
+
+Le health check ne doit accepter aucun chemin de fichier.
+
+Ne jamais utiliser :
+
+Files.readString(Paths.get(userInput))
+
+File(userInput)
+
+Path.of(userInput)
+
+ou équivalent à partir d'une entrée HTTP.
+
+
+==================================================
+11. COMMAND INJECTION
+==================================================
+
+Ne jamais exécuter de commandes OS.
+
+Le statut doit être déterminé uniquement avec les APIs Java/JVM et les mécanismes du framework.
+
+
+==================================================
+12. RATE LIMITING
+==================================================
+
+L'endpoint étant public, prévoir une protection contre l'abus.
+
+Concevoir une abstraction :
+
+RateLimiter
+
+permettant de limiter le nombre de requêtes.
+
+Exemple de configuration :
+
+server-status.rate-limit.enabled=true
+server-status.rate-limit.requests-per-minute=100
+
+Attention :
+ne pas faire confiance aveuglément à `X-Forwarded-For`.
+
+Prévoir une configuration permettant de déclarer les reverse proxies de confiance.
+
+Si le rate limiting n'est pas implémenté dans le core, créer une abstraction permettant une implémentation Spring Boot et une implémentation WildFly.
+
+
+==================================================
+13. HTTP SECURITY HEADERS
+==================================================
+
+Ajouter au minimum :
+
+Content-Type: application/json
+X-Content-Type-Options: nosniff
+Cache-Control: no-store
+
+Étudier également :
+
+Referrer-Policy
+Permissions-Policy
+
+Ne pas ajouter de headers inutiles sans justification.
+
+Documenter chaque header.
+
+
+==================================================
+14. HTTP METHODS
+==================================================
+
+Les endpoints de status doivent accepter uniquement :
+
+GET
+
+Toute autre méthode doit être refusée.
+
+Exemple :
+
+POST -> 405
+PUT  -> 405
+DELETE -> 405
+PATCH -> 405
+
+
+==================================================
+15. CORS
+==================================================
+
+Par défaut :
+
+CORS désactivé ou extrêmement restrictif.
+
+Ne pas mettre automatiquement :
+
+Access-Control-Allow-Origin: *
+
+Si CORS est activé, utiliser une allowlist configurable.
+
+Exemple :
+
+server-status.cors.enabled=false
+
+server-status.cors.allowed-origins=...
+
+
+==================================================
+16. AUTHENTIFICATION
+==================================================
+
+L'endpoint :
+
+/public/server-status/live
+
+doit pouvoir fonctionner sans authentification pour les systèmes de supervision.
+
+Mais les endpoints détaillés doivent pouvoir être protégés.
+
+Prévoir une architecture permettant :
+
+/public/server-status/live
+    -> public
+
+/public/server-status/ready
+    -> public configurable
+
+/public/server-status
+    -> configurable / potentiellement protégé
+
+Ne pas implémenter un système JWT maison.
+
+Si une authentification est ajoutée, s'intégrer au mécanisme de sécurité du framework hôte :
+- Spring Security pour Spring Boot ;
+- mécanismes Jakarta EE/WildFly pour WildFly.
+
+Ne jamais stocker de secret dans la librairie.
+
+
+==================================================
+17. INFORMATIONS EXPOSÉES
+==================================================
+
+Créer deux niveaux :
+
+PUBLIC :
+
+{
+  "status": "UP"
+}
+
+DETAILED :
+
+{
+  "status": "UP",
+  "application": "...",
+  "server": "...",
+  "javaVersion": "...",
+  "uptimeSeconds": ...,
+  "timestamp": "..."
+}
+
+Ne jamais exposer les informations sensibles.
+
+Prévoir une configuration :
+
+server-status.details.enabled=true/false
+
+
+==================================================
+18. VALIDATION
+==================================================
+
+Même si les endpoints ne prennent pas de paramètres, ajouter des tests de sécurité montrant que les payloads suivants ne peuvent pas être interprétés :
+
+<script>alert(1)</script>
+
+' OR '1'='1
+
+" OR 1=1 --
+
+../../../../etc/passwd
+
+$(whoami)
+
+; whoami
+
+${jndi:ldap://example.com/a}
+
+http://127.0.0.1
+
+http://169.254.169.254
+
+Ces valeurs doivent soit :
+- être rejetées ;
+- soit rester de simples chaînes de caractères ;
+- et surtout ne jamais être interprétées comme code, SQL, HTML, commande ou URL.
+
+
+==================================================
+19. TESTS
+==================================================
+
+Utiliser JUnit 5.
+
+Créer des tests unitaires et d'intégration.
+
+Minimum :
+
+- ServerStatusServiceTest
+- DefaultServerStatusServiceTest
+- SpringBootControllerTest
+- SpringBootSecurityTest
+- JsonResponseTest
+- HttpMethodSecurityTest
+- HeaderSecurityTest
+- RateLimitTest
+- InjectionSecurityTest
+- CORS test
+- ErrorHandlingTest
+
+Tester :
+
+GET /public/server-status/live -> 200
+
+POST /public/server-status/live -> 405
+
+PUT /public/server-status/live -> 405
+
+DELETE /public/server-status/live -> 405
+
+Réponse JSON valide.
+
+Content-Type correct.
+
+Headers de sécurité présents.
+
+Aucune stacktrace exposée.
+
+Aucune information sensible dans la réponse.
+
+
+==================================================
+20. TESTS D'INTÉGRATION
+==================================================
+
+Pour Spring Boot :
+
+Utiliser Spring Boot Test.
+
+Si pertinent :
+
+MockMvc
+
+ou :
+
+WebTestClient
+
+Tester le véritable endpoint HTTP.
+
+Pour WildFly :
+
+préparer une stratégie d'intégration permettant de déployer un WAR de test sur WildFly.
+
+
+==================================================
+21. GESTION DES ERREURS
+==================================================
+
+Ne jamais exposer une stacktrace au client.
+
+Exemple :
+
+{
+  "status": "DOWN"
+}
+
+ou une erreur JSON standardisée.
+
+Ne jamais retourner :
+
+{
+  "exception": "...",
+  "stackTrace": "...",
+  "databasePassword": "..."
+}
+
+Prévoir une gestion centralisée des erreurs.
+
+
+==================================================
+22. LOGGING
+==================================================
+
+Utiliser SLF4J.
+
+Ne jamais logger :
+- password ;
+- token ;
+- Authorization header ;
+- cookies ;
+- secrets ;
+- credentials.
+
+Éviter également les logs contenant des entrées HTTP non contrôlées.
+
+Prévoir une protection contre les log injection.
+
+
+==================================================
+23. DÉPENDANCES
+==================================================
+
+Minimiser les dépendances.
+
+Ne pas ajouter une dépendance simplement parce qu'elle est pratique.
+
+Pour chaque dépendance :
+- expliquer son utilité ;
+- vérifier sa licence ;
+- vérifier sa compatibilité Java 17 ;
+- vérifier les vulnérabilités connues.
+
+Éviter les dépendances transitive inutiles.
+
+Utiliser Maven Enforcer Plugin.
+
+Ajouter une vérification des dépendances vulnérables si possible.
+
+
+==================================================
+24. QUALITÉ DU CODE
+==================================================
+
+Respecter :
+- SOLID ;
+- clean architecture ;
+- immutabilité ;
+- séparation des responsabilités ;
+- interfaces pour les abstractions ;
+- injection de dépendances ;
+- classes finales lorsque pertinent ;
+- records pour les DTOs immuables.
+
+Éviter :
+- static global state ;
+- singleton manuel ;
+- reflection inutile ;
+- code dupliqué ;
+- dépendances framework dans le core.
+
+
+==================================================
+25. COMPATIBILITÉ
+==================================================
+
+Le core doit rester indépendant.
+
+Architecture :
+
+server-status-core
+       |
+       +-----------------------+
+       |                       |
+       v                       v
+server-status-spring-boot   server-status-wildfly
+
+Le core ne doit jamais dépendre de :
+- Spring ;
+- Spring Boot ;
+- WildFly ;
+- Servlet API ;
+- Jakarta REST.
+
+Les adapters peuvent dépendre des frameworks.
+
+
+==================================================
+26. CONFIGURATION SPRING BOOT
+==================================================
+
+Prévoir :
+
+server-status.enabled=true
+
+server-status.application-name=${spring.application.name:unknown}
+
+server-status.public-endpoint-enabled=true
+
+server-status.details-enabled=false
+
+server-status.rate-limit.enabled=true
+
+server-status.rate-limit.requests-per-minute=100
+
+server-status.cors.enabled=false
+
+
+==================================================
+27. OBSERVABILITÉ
+==================================================
+
+Prévoir une architecture compatible avec :
+- logs ;
+- métriques ;
+- monitoring ;
+- Kubernetes ;
+- OpenShift ;
+- load balancer.
+
+Les endpoints `/live` et `/ready` doivent être adaptés aux probes Kubernetes/OpenShift.
+
+Documenter la différence :
+
+liveness
+readiness
+
+Ne pas confondre :
+"processus vivant"
+
+et :
+
+"application prête à recevoir du trafic".
+
+
+==================================================
+28. DOCUMENTATION
+==================================================
+
+Créer un README.md professionnel contenant :
+
+1. Présentation.
+2. Architecture.
+3. Fonctionnement.
+4. Installation Spring Boot.
+5. Installation WildFly.
+6. Configuration.
+7. Endpoints.
+8. Exemples curl.
+9. Sécurité.
+10. Rate limiting.
+11. CORS.
+12. Headers HTTP.
+13. Kubernetes/OpenShift.
+14. Tests.
+15. Maven.
+16. Publication Artifactory.
+17. Compatibilité.
+18. Limitations.
+19. Threat model.
+20. Bonnes pratiques.
+
+
+==================================================
+29. EXEMPLES CURL
+==================================================
+
+Ajouter :
+
+curl -i http://localhost:8080/public/server-status/live
+
+curl -i http://localhost:8080/public/server-status/ready
+
+curl -i http://localhost:8080/public/server-status
+
+Montrer les réponses.
+
+
+==================================================
+30. OPENAPI
+==================================================
+
+Créer éventuellement une documentation OpenAPI uniquement dans le module Spring Boot/WildFly adapter.
+
+Ne pas ajouter Swagger/OpenAPI au core.
+
+Documenter :
+
+GET /public/server-status/live
+GET /public/server-status/ready
+GET /public/server-status
+
+
+==================================================
+31. JAR / ARTIFACTS
+==================================================
+
+Les artefacts Maven finaux doivent être :
+
+<groupId>com.company.platform</groupId>
+
+<artifactId>server-status-core</artifactId>
+
+<artifactId>server-status-spring-boot</artifactId>
+
+<artifactId>server-status-wildfly</artifactId>
+
+Utiliser une version :
+
+1.0.0-SNAPSHOT
+
+pour le développement initial.
+
+
+==================================================
+32. ARTIFACTORY
+==================================================
+
+Préparer la configuration Maven permettant la publication vers JFrog Artifactory.
+
+Ne jamais mettre :
+- username ;
+- password ;
+- token
+
+dans le repository Git.
+
+Utiliser :
+- Maven settings.xml ;
+- variables d'environnement ;
+- credentials sécurisés CI/CD.
+
+
+==================================================
+33. CI/CD
+==================================================
+
+Créer si pertinent un pipeline GitHub Actions ou GitLab CI permettant :
+
+1. checkout
+2. JDK 17
+3. Maven verify
+4. tests
+5. static analysis
+6. dependency vulnerability scan
+7. package
+8. publication Artifactory uniquement sur branche/tag autorisé
+
+
+==================================================
+34. SECURITY THREAT MODEL
+==================================================
+
+Créer un document :
+
+SECURITY.md
+
+Identifier au minimum :
+
+- SQL Injection
+- XSS
+- SSRF
+- Command Injection
+- Path Traversal
+- LDAP Injection
+- XXE
+- Deserialization
+- Log Injection
+- Header Injection
+- DoS
+- Rate abuse
+- Information disclosure
+- Dependency vulnerabilities
+
+Pour chaque menace :
+- risque ;
+- scénario ;
+- mitigation ;
+- test associé.
+
+
+==================================================
+35. PRINCIPLE IMPORTANT
+==================================================
+
+NE PAS SUR-INGÉNIERER.
+
+L'endpoint de health check doit rester simple.
+
+Plus précisément :
+
+GET /public/server-status/live
+
+ne doit faire que :
+
+1. recevoir la requête ;
+2. vérifier qu'il s'agit d'un GET ;
+3. appliquer les protections HTTP ;
+4. consulter l'état local ;
+5. retourner un petit JSON.
+
+Pas de :
+- SQL ;
+- réseau externe ;
+- fichier ;
+- shell ;
+- parsing complexe ;
+- expression dynamique ;
+- template.
+
+
+==================================================
+36. LIVRABLES ATTENDUS
+==================================================
+
+Produire le projet complet.
+
+Je veux :
+
+1. Tous les `pom.xml`.
+2. Tous les fichiers Java.
+3. Tous les fichiers de configuration.
+4. Tests unitaires.
+5. Tests d'intégration.
+6. SECURITY.md.
+7. README.md.
+8. Exemple Spring Boot.
+9. Exemple WildFly.
+10. Configuration Maven.
+11. Configuration Artifactory.
+12. Configuration CI/CD.
+13. Rapport des choix architecturaux.
+14. Threat model.
+15. Instructions exactes de compilation.
+
+Avant de terminer, exécuter :
+
+mvn clean verify
+
+et corriger toutes les erreurs.
+
+Vérifier également :
+
+mvn dependency:tree
+
+et identifier les dépendances inutiles ou vulnérables.
+
+Le projet doit compiler avec Java 17.
+
+Ne jamais prétendre qu'un test a réussi si tu ne l'as pas réellement exécuté.
+
+
+==================================================
+37. CRITÈRES D'ACCEPTATION
+==================================================
+
+Le projet est accepté uniquement si :
+
+[ ] Java 17 compile.
+[ ] Maven build réussit.
+[ ] Core indépendant des frameworks.
+[ ] Spring Boot fonctionne.
+[ ] WildFly/Jakarta REST fonctionne.
+[ ] `/live` fonctionne.
+[ ] `/ready` fonctionne.
+[ ] Aucun paramètre utilisateur nécessaire.
+[ ] Aucun SQL.
+[ ] Aucune commande OS.
+[ ] Aucun appel réseau externe.
+[ ] Aucun accès fichier basé sur input.
+[ ] JSON uniquement.
+[ ] Security headers présents.
+[ ] CORS sécurisé.
+[ ] Rate limiting disponible.
+[ ] Erreurs sans stacktrace.
+[ ] Secrets jamais exposés.
+[ ] Tests d'injection présents.
+[ ] Tests HTTP présents.
+[ ] Documentation complète.
+[ ] SECURITY.md présent.
+[ ] Maven publication Artifactory documentée.
+[ ] Projet prêt pour utilisation en production.
+
+
+IMPORTANT POUR LE DÉVELOPPEMENT
+===============================
+
+Ne te contente pas de générer des fichiers superficiels.
+
+Commence par analyser l'architecture.
+
+Ensuite implémente progressivement :
+
+1. Structure Maven.
+2. Core.
+3. Spring Boot adapter.
+4. WildFly adapter.
+5. Sécurité.
+6. Tests.
+7. Documentation.
+8. Build.
+9. Analyse des dépendances.
+10. Correction des problèmes.
+
+À chaque étape, vérifier que l'architecture reste compatible avec Java 17 et que le core reste indépendant des frameworks.
+
+Si une exigence est ambiguë, choisir l'option la plus sécurisée et la plus simple, puis documenter le choix.
+
+Ne jamais introduire une fonctionnalité qui augmente inutilement la surface d'attaque.
