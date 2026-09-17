@@ -1,0 +1,23 @@
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.converter.json.JacksonJsonHttpMessageConverter;
+
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.json.JsonMapper;
+
+@Configuration
+public class JsonConfig {
+
+    @Bean
+    public JacksonJsonHttpMessageConverter mappingJacksonHttpMessageConverter() {
+
+        JsonMapper mapper = JsonMapper.builder()
+                .changeDefaultPropertyInclusion(inclusion ->
+                        inclusion.withValueInclusion(
+                                tools.jackson.annotation.JsonInclude.Include.NON_NULL))
+                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                .build();
+
+        return new JacksonJsonHttpMessageConverter(mapper);
+    }
+}
