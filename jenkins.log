@@ -1,0 +1,159 @@
+Started by user admin
+Loading library scan-sbom-shared-library@main
+Attempting to resolve main from remote references...
+ > git --version # timeout=10
+ > git --version # 'git version 2.47.3'
+ > git ls-remote -- file:///opt/scan-sbom-shared-library.git # timeout=10
+Found match: refs/heads/main revision a8e3b1deb31780368910d3cd932cec1cfd583047
+The recommended git tool is: NONE
+No credentials specified
+ > git rev-parse --resolve-git-dir /var/jenkins_home/workspace/e2e-java-vulnerable@libs/7cf367204fc13d2af2728d185796d863cbf08274d48d67109bb6aff3877c2d0e/.git # timeout=10
+Fetching changes from the remote Git repository
+ > git config remote.origin.url file:///opt/scan-sbom-shared-library.git # timeout=10
+Fetching without tags
+Fetching upstream changes from file:///opt/scan-sbom-shared-library.git
+ > git --version # timeout=10
+ > git --version # 'git version 2.47.3'
+ > git fetch --no-tags --force --progress -- file:///opt/scan-sbom-shared-library.git +refs/heads/*:refs/remotes/origin/* # timeout=10
+Checking out Revision a8e3b1deb31780368910d3cd932cec1cfd583047 (main)
+ > git config core.sparsecheckout # timeout=10
+ > git checkout -f a8e3b1deb31780368910d3cd932cec1cfd583047 # timeout=10
+Commit message: "chore: embed tested shared library"
+ > git rev-list --no-walk e2a9784b19200ef49f6d2f1a05e87e8eb869f421 # timeout=10
+[Pipeline] Start of Pipeline
+[Pipeline] node
+Still waiting to schedule task
+Waiting for next available executor
+Running on Jenkins in /var/jenkins_home/workspace/e2e-java-vulnerable
+[Pipeline] {
+[Pipeline] stage
+[Pipeline] { (Prepare fixture)
+[Pipeline] deleteDir
+[Pipeline] sh
++ cp -R /opt/scan-sbom-e2e-projects/java-vulnerable/. .
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Build and test)
+[Pipeline] sh
++ mvn --batch-mode clean verify
+[INFO] Scanning for projects...
+[INFO]
+[INFO] -----------------< org.example.e2e:spring-vulnerable >------------------
+[INFO] Building Spring Boot intentionally vulnerable dependency fixture 1.0.0
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- clean:3.5.0:clean (default-clean) @ spring-vulnerable ---
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ spring-vulnerable ---
+[INFO] skip non existing resourceDirectory /var/jenkins_home/workspace/e2e-java-vulnerable/src/main/resources
+[INFO] skip non existing resourceDirectory /var/jenkins_home/workspace/e2e-java-vulnerable/src/main/resources
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ spring-vulnerable ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 1 source file with javac [debug parameters release 17] to target/classes
+[INFO] Annotation processing is enabled because one or more processors were found
+  on the class path. A future release of javac may disable annotation processing
+  unless at least one processor is specified by name (-processor), or a search
+  path is specified (--processor-path, --processor-module-path), or annotation
+  processing is enabled explicitly (-proc:only, -proc:full).
+  Use -Xlint:-options to suppress this message.
+  Use -proc:none to disable annotation processing.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ spring-vulnerable ---
+[INFO] skip non existing resourceDirectory /var/jenkins_home/workspace/e2e-java-vulnerable/src/test/resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ spring-vulnerable ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 1 source file with javac [debug parameters release 17] to target/test-classes
+[INFO] Annotation processing is enabled because one or more processors were found
+  on the class path. A future release of javac may disable annotation processing
+  unless at least one processor is specified by name (-processor), or a search
+  path is specified (--processor-path, --processor-module-path), or annotation
+  processing is enabled explicitly (-proc:only, -proc:full).
+  Use -Xlint:-options to suppress this message.
+  Use -proc:none to disable annotation processing.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ spring-vulnerable ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running org.example.e2e.DemoApplicationTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.159 s -- in org.example.e2e.DemoApplicationTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO]
+[INFO] --- jar:3.5.1:jar (default-jar) @ spring-vulnerable ---
+[INFO] Building jar: /var/jenkins_home/workspace/e2e-java-vulnerable/target/spring-vulnerable-1.0.0.jar
+[INFO]
+[INFO] --- spring-boot:4.1.1:repackage (repackage) @ spring-vulnerable ---
+[INFO] Replacing main artifact /var/jenkins_home/workspace/e2e-java-vulnerable/target/spring-vulnerable-1.0.0.jar with repackaged archive, adding nested dependencies in BOOT-INF/.
+[INFO] The original artifact has been renamed to /var/jenkins_home/workspace/e2e-java-vulnerable/target/spring-vulnerable-1.0.0.jar.original
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  32.253 s
+[INFO] Finished at: 2026-09-25T07:13:28Z
+[INFO] ------------------------------------------------------------------------
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (CycloneDX and Xray Watch)
+[Pipeline] script
+[Pipeline] {
+[Pipeline] fileExists
+[Pipeline] isUnix
+[Pipeline] sh
++ mkdir -p .sbom
+[Pipeline] isUnix
+[Pipeline] sh
++ mkdir -p .sbom
+[Pipeline] withCredentials
+Masking supported pattern matches of $JFROG_ACCESS_TOKEN
+[Pipeline] {
+[Pipeline] isUnix
+[Pipeline] sh
++ java -jar /opt/scan-sbom-xray/scan-sbom-xray-1.1.0-cli.jar --source . --output .sbom/application-bom.cdx.json --ecosystem MAVEN --policy COMPILE_ONLY_STRICT --command-timeout 600 --xray-url https://trial93d6os.jfrog.io --watch scan-sbom-xray-e2e-watch --severity LOW --fail-on-violation true --request-timeout 30 --poll-interval 5 --scan-timeout 900 --max-retries 6
+scan-sbom-xray CVE QUALITY GATE: BLOCKED
++----------+-------------------------------------+----------------+-------------------------------------+------------------+-----------------------------+---------------+----------------+
+| SEVERITY | DIRECT PACKAGE                      | DIRECT VERSION | IMPACTED PACKAGE                    | IMPACTED VERSION | FIXED VERSION               | TYPE          | CVE            |
++----------+-------------------------------------+----------------+-------------------------------------+------------------+-----------------------------+---------------+----------------+
+| CRITICAL | org.apache.logging.log4j:log4j-core | 2.14.1         | org.apache.logging.log4j:log4j-core | 2.14.1           | [2.12.2], [2.15.0], [2.3.1] | security      | CVE-2021-44228 |
+| CRITICAL | org.apache.logging.log4j:log4j-core | 2.14.1         | org.apache.logging.log4j:log4j-core | 2.14.1           | [2.12.2], [2.16.0], [2.3.1] | security      | CVE-2021-45046 |
+| HIGH     | org.apache.logging.log4j:log4j-core | 2.14.1         | org.apache.logging.log4j:log4j-core | 2.14.1           | [2.25.4]                    | security      | CVE-2026-34480 |
+| MEDIUM   | org.apache.logging.log4j:log4j-core | 2.14.1         | org.apache.logging.log4j:log4j-core | 2.14.1           | [2.12.4], [2.17.1], [2.3.2] | vulnerability | CVE-2021-44832 |
+| MEDIUM   | org.apache.logging.log4j:log4j-core | 2.14.1         | org.apache.logging.log4j:log4j-core | 2.14.1           | [2.12.3], [2.17.0], [2.3.1] | vulnerability | CVE-2021-45105 |
+| MEDIUM   | org.apache.logging.log4j:log4j-core | 2.14.1         | org.apache.logging.log4j:log4j-core | 2.14.1           | [2.25.3]                    | vulnerability | CVE-2025-68161 |
+| MEDIUM   | org.apache.logging.log4j:log4j-core | 2.14.1         | org.apache.logging.log4j:log4j-core | 2.14.1           | [2.25.4]                    | vulnerability | CVE-2026-34477 |
++----------+-------------------------------------+----------------+-------------------------------------+------------------+-----------------------------+---------------+----------------+
+[Pipeline] }
+[Pipeline] // withCredentials
+[Pipeline] fileExists
+[Pipeline] readFile
+[Pipeline] readJSON
+[Pipeline] archiveArtifacts
+Archiving artifacts
+Recording fingerprints
+[Pipeline] error
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Declarative: Post Actions)
+[Pipeline] junit
+Recording test results
+[Checks API] No suitable checks publisher found.
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] }
+[Pipeline] // node
+[Pipeline] End of Pipeline
+ERROR: JFrog Xray Watch scan-sbom-xray-e2e-watch rejected the dependency graph; maximum severity: CRITICAL; normalized CVE impacts: 7
+Finished: FAILURE
