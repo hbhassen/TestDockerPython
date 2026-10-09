@@ -1,0 +1,102 @@
+
+# Image de base Maven + JDK 21
+# Remplacer par ton image Red Hat existante
+ARG MAVEN_IMAGE=registry.access.redhat.com/ubi9/openjdk-21:latest
+
+FROM ${MAVEN_IMAGE}
+
+USER 0
+
+# Versions CycloneDX
+ARG CDX_PY_VERSION=7.5.0
+ARG CDX_NPM_VERSION=6.0.1
+ARG CDX_MVN_VERSION=2.9.3
+
+# 1. Installer Python 3.12, pip, Node.js et npm
+# Necessite les depots UBI9 appropries
+RUN microdnf module enable -y nodejs:22 && \
+    microdnf install -y \
+      python3.12 \
+      python3.12-pip \
+      nodejs \
+      npm \
+      git \
+    && microdnf clean all
+
+# 2. Installer cyclonedx-py dans un venv dedie
+RUN python3.12 -m venv /opt/cyclonedx-python && \
+    /opt/cyclonedx-python/bin/python -m pip \
+      install --no-cache-dir \
+      "cyclonedx-bom==${CDX_PY_VERSION}"
+
+# 3. Installer cyclonedx-npm globalement
+# sous un prefixe dedie
+RUN npm install -g \
+      --prefix /opt/cyclonedx-node \
+      "@cyclonedx/cyclonedx-npm@${CDX_NPM_VERSION}"
+
+# 4. Ajouter les commandes au PATH
+ENV PATH="/opt/cyclonedx-python/bin:/opt/cyclonedx-node/bin:${PATH}"
+
+# 5. Preparer Maven et les repertoires OpenShift
+ENV HOME=/opt/runner \
+    JAVA_TOOL_OPTIONS="-Duser.home=/opt/runner" \
+    MAVEN_OPTS="-Dmaven.repo.local=/opt/runner/.m2/repository" \
+    npm_config_cache=/opt/runner/.npm \
+    PIP_CACHE_DIR=/opt/runner/.cache/pip
+
+RUN mkdir -p \
+      /opt/runner/.m2 \
+      /opt/runner/.npm \
+      /opt/runner/.cache/pip \
+      /opt/sbom \
+      /workspace && \
+    chgrp -R 0 /opt/runner /opt/sbom /workspace && \
+    chmod -R g=u /opt/runner /opt/sbom /workspace
+
+# 6. Declarer CycloneDX comme groupe de plugins Maven
+# Permet la resolution du prefixe cyclonedx
+RUN printf '%s\n' \
+    '<settings>' \
+    '  <pluginGroups>' \
+    '    <pluginGroup>org.cyclonedx</pluginGroup>' \
+    '  </pluginGroups>' \
+    '</settings>' \
+    > /opt/runner/.m2/settings.xml
+
+# 7. Telecharger le plugin Maven et ses dependances
+# dans le cache de l'image
+RUN mkdir -p /tmp/cdx-test && \
+    printf '%s\n' \
+      '<project>' \
+      ' <modelVersion>4.0.0</modelVersion>' \
+      ' <groupId>local.test</groupId>' \
+      ' <artifactId>cdx-test</artifactId>' \
+      ' <version>1.0.0</version>' \
+      '</project>' \
+    > /tmp/cdx-test/pom.xml && \
+    mvn -B -ntp -f /tmp/cdx-test/pom.xml \
+      "org.cyclonedx:cyclonedx-maven-plugin:${CDX_MVN_VERSION}:makeBom" && \
+    rm -rf /tmp/cdx-test
+
+# 8. Verifier les outils et commandes CycloneDX
+RUN java -version && \
+    mvn -version && \
+    python3.12 --version && \
+    python3.12 -m pip --version && \
+    node --version && \
+    npm --version && \
+    cyclonedx-py --version && \
+    cyclonedx-npm --help > /dev/null && \
+    command -v cyclonedx-py && \
+    command -v cyclonedx-npm
+
+# 9. Installer le CLI Java
+COPY cli-1.0.0.jar /opt/sbom/cli-1.0.0.jar
+
+WORKDIR /workspace
+
+# Compatible avec l'UID arbitraire OpenShift
+USER 1001
+
+ENTRYPOINT ["java", "-jar", "/opt/sbom/cli-1.0.0.jar"]
